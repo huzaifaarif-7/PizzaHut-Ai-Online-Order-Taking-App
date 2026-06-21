@@ -4,28 +4,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pizza Hut AI Assistant</title>
+  <title>Pizza Hut · Voice Ordering</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
   <script type="module">
     import VapiClient from 'https://esm.sh/@vapi-ai/web@2.5.2/es2022/web.bundle.mjs';
     window.__VapiClientPromise = Promise.resolve(VapiClient);
   </script>
   <link
-    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
   <style>
     :root {
-      --red: #CC0000;
-      --red-dark: #9B0000;
-      --red-glow: rgba(204, 0, 0, 0.35);
-      --cream: #FFF8F0;
-      --coal: #1A1A1A;
-      --charcoal: #2D2D2D;
-      --silver: #8A8A8A;
-      --border: rgba(255, 255, 255, 0.08);
+      --bg: #160A0B;
+      --surface: #241315;
+      --surface-2: #2C171A;
+      --line: rgba(255, 226, 224, 0.10);
+      --line-strong: rgba(255, 226, 224, 0.17);
+      --text: #F7EEEC;
+      --muted: rgba(247, 238, 236, 0.74);
+      --faint: rgba(247, 238, 236, 0.56);
+      --dim: rgba(247, 238, 236, 0.40);
+      --red: #E63B33;
+      --red-soft: rgba(230, 59, 51, 0.16);
+      --red-line: rgba(230, 59, 51, 0.34);
+      --maroon: #5C1418;
+      --green: #5BE08C;
     }
 
     * {
@@ -35,34 +41,37 @@
     }
 
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--coal);
-      color: #fff;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background:
+        radial-gradient(1200px 620px at 50% -12%, rgba(168, 30, 34, 0.34), transparent 62%),
+        radial-gradient(900px 520px at 102% 112%, rgba(92, 20, 24, 0.32), transparent 60%),
+        linear-gradient(180deg, #1C0D0E 0%, #150809 60%, #120708 100%);
+      background-attachment: fixed;
+      color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.01em;
     }
 
     h1,
     h2,
     h3,
     .font-display {
-      font-family: 'Syne', sans-serif;
+      font-family: 'Inter Tight', 'Inter', sans-serif;
+      letter-spacing: -0.025em;
     }
 
-    /* Noise texture overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.4;
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0;
+      font-feature-settings: "tnum" 1;
     }
 
     /* Scrollbar */
     ::-webkit-scrollbar {
       width: 4px;
+      height: 4px;
     }
 
     ::-webkit-scrollbar-track {
@@ -70,19 +79,19 @@
     }
 
     ::-webkit-scrollbar-thumb {
-      background: var(--red);
+      background: var(--line-strong);
       border-radius: 4px;
     }
 
-    /* Mic button animations */
+    /* Animations — restrained */
     @keyframes pulse-ring {
       0% {
-        transform: scale(1);
-        opacity: 0.6;
+        transform: translateX(-50%) scale(1);
+        opacity: 0.5;
       }
 
       100% {
-        transform: scale(1.6);
+        transform: translateX(-50%) scale(1.7);
         opacity: 0;
       }
     }
@@ -91,7 +100,7 @@
 
       0%,
       100% {
-        transform: scaleY(0.4);
+        transform: scaleY(0.35);
       }
 
       50% {
@@ -102,22 +111,12 @@
     @keyframes float-in {
       from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(8px);
       }
 
       to {
         opacity: 1;
         transform: translateY(0);
-      }
-    }
-
-    @keyframes shimmer {
-      0% {
-        background-position: -200% center;
-      }
-
-      100% {
-        background-position: 200% center;
       }
     }
 
@@ -144,79 +143,94 @@
     }
 
     .pulse-ring {
-      animation: pulse-ring 1.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+      animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
     }
 
     .chat-bubble {
-      animation: float-in 0.35s ease forwards;
+      animation: float-in 0.3s ease forwards;
     }
 
     .bar {
       animation: soundwave 0.8s ease-in-out infinite;
     }
 
-    .bar:nth-child(1) {
-      animation-delay: 0s;
-    }
-
-    .bar:nth-child(2) {
-      animation-delay: 0.1s;
-    }
-
-    .bar:nth-child(3) {
-      animation-delay: 0.2s;
-    }
-
-    .bar:nth-child(4) {
-      animation-delay: 0.1s;
-    }
-
-    .bar:nth-child(5) {
-      animation-delay: 0s;
-    }
+    .bar:nth-child(1) { animation-delay: 0s; }
+    .bar:nth-child(2) { animation-delay: 0.1s; }
+    .bar:nth-child(3) { animation-delay: 0.2s; }
+    .bar:nth-child(4) { animation-delay: 0.1s; }
+    .bar:nth-child(5) { animation-delay: 0s; }
 
     .dot-blink {
       animation: blink 1.2s ease infinite;
     }
 
-    .gradient-text {
-      background: linear-gradient(90deg, #FF6B6B, #CC0000, #FF6B6B);
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: shimmer 3s linear infinite;
+    /* Surfaces — flat, hairline, no glow */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
     }
 
-    .glass-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(20px);
+    .panel-2 {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
     }
 
-    .glass-card-red {
-      background: rgba(204, 0, 0, 0.08);
-      border: 1px solid rgba(204, 0, 0, 0.2);
-      backdrop-filter: blur(20px);
+    .panel-red {
+      background: var(--red-soft);
+      border: 1px solid var(--red-line);
     }
 
-    .mic-btn-idle {
-      background: linear-gradient(145deg, #CC0000, #8B0000);
-      box-shadow: 0 8px 32px rgba(204, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.4);
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+
+    .mic-btn-idle,
+    .mic-btn-connected,
+    .mic-btn-speaking,
+    .mic-btn-listening {
+      background: var(--red);
+    }
+
+    /* Blink red to invite the user to tap/speak — until they actually start speaking */
+    @keyframes mic-blink {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(230, 59, 51, 0.6);
+        background: var(--red);
+      }
+      50% {
+        box-shadow: 0 0 0 12px rgba(230, 59, 51, 0);
+        background: #C32E27;
+      }
+    }
+
+    .mic-btn-idle,
+    .mic-btn-connected {
+      animation: mic-blink 1.25s ease-in-out infinite;
+    }
+
+    /* Empty-state mic icon in the conversation panel — blink red to invite a tap */
+    @keyframes mic-icon-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .mic-icon-blink {
+      color: var(--red);
+      animation: mic-icon-blink 1.25s ease-in-out infinite;
     }
 
     .mic-btn-listening {
-      background: linear-gradient(145deg, #FF3333, #CC0000);
-      box-shadow: 0 8px 48px rgba(204, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
     }
 
     .mic-btn-processing {
-      background: linear-gradient(145deg, #FF8C00, #CC5500);
-      box-shadow: 0 8px 32px rgba(255, 140, 0, 0.5);
-    }
-
-    .mic-btn-speaking {
-      background: linear-gradient(145deg, #CC0000, #8B0000);
-      box-shadow: 0 8px 32px rgba(204, 0, 0, 0.5);
+      background: var(--surface-2);
+      border: 1px solid var(--line-strong);
     }
 
     .scrollable {
@@ -235,136 +249,132 @@
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       display: inline-block;
     }
 
-    .status-connected {
-      background: #22C55E;
-      box-shadow: 0 0 8px #22C55E;
-    }
-
-    .status-idle {
-      background: #6B7280;
-    }
-
+    .status-connected { background: var(--green); }
+    .status-idle { background: var(--dim); }
     .status-listening {
-      background: #CC0000;
-      box-shadow: 0 0 8px #CC0000;
-      animation: blink 0.8s ease infinite;
+      background: var(--red);
+      animation: blink 0.9s ease infinite;
     }
-
     .status-speaking {
-      background: #F59E0B;
-      box-shadow: 0 0 8px #F59E0B;
-      animation: blink 1.2s ease infinite;
+      background: var(--red);
+      animation: blink 1.3s ease infinite;
     }
 
     .tag {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 999px;
+      padding: 4px 8px;
+      border-radius: 6px;
     }
 
-    /* ─── Added: form + modal styling (matches existing system) ─────────────── */
     .field-input {
       width: 100%;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
       padding: 12px 14px;
-      color: #fff;
+      color: var(--text);
       font-size: 14px;
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.18s;
     }
 
     .field-input:focus {
-      border-color: var(--red);
+      border-color: var(--red-line);
     }
 
     .field-input::placeholder {
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--dim);
     }
 
     .field-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.5);
-      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 8px;
       display: block;
-      letter-spacing: 0.03em;
     }
 
     .field-err {
-      font-size: 11px;
-      color: #FF8080;
-      margin-top: 5px;
+      font-size: 11.5px;
+      color: #FF8A82;
+      margin-top: 6px;
     }
 
     .btn-primary {
-      background: linear-gradient(145deg, #CC0000, #8B0000);
+      background: var(--red);
       color: #fff;
       border: none;
-      border-radius: 12px;
-      padding: 12px 20px;
+      border-radius: 10px;
+      padding: 13px 20px;
       font-weight: 600;
       font-size: 14px;
       cursor: pointer;
-      font-family: 'Syne', sans-serif;
-      transition: transform 0.15s, box-shadow 0.15s;
+      font-family: 'Inter Tight', sans-serif;
+      letter-spacing: -0.01em;
+      transition: filter 0.15s;
     }
 
     .btn-primary:hover {
-      box-shadow: 0 6px 24px rgba(204, 0, 0, 0.45);
+      filter: brightness(1.08);
     }
 
     .btn-ghost {
-      background: rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      padding: 12px 20px;
+      background: var(--surface-2);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px 20px;
       font-weight: 500;
       font-size: 13px;
       cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
     }
 
     .btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--line-strong);
+      color: var(--text);
     }
 
     .pill-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 999px;
-      padding: 8px 14px;
-      color: rgba(255, 255, 255, 0.75);
-      font-size: 12px;
+      gap: 7px;
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 13px;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      transition: border-color 0.18s, color 0.18s;
       white-space: nowrap;
     }
 
     .pill-btn:hover {
-      background: rgba(204, 0, 0, 0.18);
-      border-color: rgba(204, 0, 0, 0.3);
+      border-color: var(--line-strong);
+      color: var(--text);
     }
 
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.72);
-      backdrop-filter: blur(8px);
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -373,36 +383,335 @@
     }
 
     .modal-card {
-      background: #1f1f1f;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
       width: 100%;
       max-height: 88vh;
       overflow-y: auto;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7);
     }
 
     .add-btn {
       width: 30px;
       height: 30px;
-      border-radius: 9px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(255, 255, 255, 0.06);
-      color: #fff;
-      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
       cursor: pointer;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       transition: all 0.15s;
     }
 
     .add-btn:hover {
-      background: rgba(204, 0, 0, 0.25);
-      border-color: rgba(204, 0, 0, 0.4);
+      border-color: var(--red-line);
+      background: var(--red-soft);
     }
 
     .add-btn.added {
       background: var(--red);
       border-color: var(--red);
+    }
+
+    /* Menu list rows — editorial hairline list */
+    .menu-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+      transition: padding-left 0.18s;
+    }
+
+    .menu-row:last-child {
+      border-bottom: none;
+    }
+
+    .menu-row:hover {
+      padding-left: 4px;
+    }
+
+    /* ─── Intro animation ─────────────────────────────────────────────────────── */
+    .intro {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      background:
+        radial-gradient(900px 700px at 50% 38%, rgba(176, 32, 36, 0.30), transparent 60%),
+        linear-gradient(180deg, #1E0E10 0%, #140809 70%, #0F0607 100%);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      overflow: hidden;
+    }
+
+    .intro.leaving {
+      opacity: 0;
+      transform: scale(1.06);
+      pointer-events: none;
+    }
+
+    .intro-skip {
+      position: absolute;
+      bottom: 26px;
+      right: 26px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .intro-skip:hover { color: var(--muted); }
+
+    .slice-stage {
+      position: relative;
+      width: 320px;
+      height: 326px;
+      transform-origin: 50% 26%;
+      animation: slice-float 5s ease-in-out 2.7s infinite;
+    }
+
+    /* warm oven glow behind the slice */
+    .slice-glow {
+      position: absolute;
+      left: 50%;
+      top: 40%;
+      width: 380px;
+      height: 380px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(238, 96, 48, 0.32), transparent 60%);
+      opacity: 0;
+      animation: glow-in 0.9s ease 0.3s forwards;
+    }
+
+    /* ground shadow under the tip */
+    .slice-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 2px;
+      width: 140px;
+      height: 22px;
+      transform: translateX(-50%);
+      background: rgba(35, 5, 7, 0.6);
+      border-radius: 50%;
+      filter: blur(10px);
+      opacity: 0;
+      animation: glow-in 0.7s ease 0.55s forwards;
+    }
+
+    .slice-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 300px;
+      transform: scale(0);
+      transform-origin: 50% 7%;
+    }
+
+    /* deep-baked sauce / outer edge of the slice */
+    .slice-base {
+      clip-path: polygon(50% 99%, 6% 3%, 94% 3%);
+      background: linear-gradient(177deg, #C42A20 0%, #8E1714 58%, #631011 100%);
+      filter: drop-shadow(0 22px 24px rgba(0, 0, 0, 0.45));
+      animation: slice-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+    }
+
+    /* molten cheese surface with mottled melt + browned spots */
+    .slice-cheese {
+      clip-path: polygon(50% 93%, 11% 8%, 89% 8%);
+      background:
+        radial-gradient(circle at 33% 24%, rgba(255, 255, 255, 0.45), transparent 15%),
+        radial-gradient(circle at 64% 38%, rgba(196, 132, 48, 0.55), transparent 17%),
+        radial-gradient(circle at 44% 60%, rgba(196, 132, 48, 0.5), transparent 18%),
+        radial-gradient(circle at 56% 78%, rgba(170, 110, 40, 0.45), transparent 16%),
+        linear-gradient(178deg, #FCE7A8 0%, #F2CB6B 52%, #E1AC4E 100%);
+      animation: slice-in 0.56s cubic-bezier(0.22, 1, 0.36, 1) 0.44s forwards, bake-glow 1.3s ease 2.1s;
+    }
+
+    /* glossy light sweep across the cheese after assembly */
+    .slice-gloss {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 300px;
+      clip-path: polygon(50% 93%, 11% 8%, 89% 8%);
+      background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.42) 50%, transparent 58%);
+      background-size: 260% 100%;
+      background-position: 150% 0;
+      opacity: 0;
+      pointer-events: none;
+      animation: gloss-sweep 1.3s ease 2.0s;
+    }
+
+    /* puffed crust along the wide top edge */
+    .slice-crust {
+      position: absolute;
+      top: -3px;
+      left: 5%;
+      width: 90%;
+      height: 40px;
+      border-radius: 26px;
+      background: linear-gradient(180deg, #EEBA67 0%, #D5953F 52%, #AE712E 100%);
+      box-shadow:
+        inset 0 3px 6px rgba(255, 226, 170, 0.55),
+        inset 0 -7px 13px rgba(110, 60, 15, 0.5),
+        0 6px 14px rgba(0, 0, 0, 0.4);
+      transform: scaleX(0);
+      transform-origin: center;
+      z-index: 4;
+      animation: crust-in 0.5s cubic-bezier(0.34, 1.4, 0.5, 1) 0.1s forwards;
+    }
+
+    .topping {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 6;
+    }
+
+    .topping .chip {
+      opacity: 0;
+      animation: topping-drop 0.7s cubic-bezier(0.34, 1.3, 0.5, 1) forwards;
+      transform-origin: center bottom;
+    }
+
+    .topping .chip-shadow {
+      position: absolute;
+      left: 50%;
+      top: 60%;
+      width: 110%;
+      height: 34%;
+      border-radius: 50%;
+      background: rgba(60, 10, 10, 0.5);
+      filter: blur(3px);
+      transform: translate(-50%, 0) scale(0.3);
+      opacity: 0;
+      animation: shadow-in 0.7s ease forwards;
+    }
+
+    /* pepperoni — crisped cupped edge, glossy center, char spots */
+    .pep {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 38% 32%, #F58163 0%, #DB4330 38%, #B12C1F 72%, #8E2017 100%);
+      box-shadow:
+        inset 0 0 0 2px rgba(120, 28, 16, 0.45),
+        inset 0 -3px 6px rgba(80, 12, 8, 0.6),
+        inset 0 3px 6px rgba(255, 190, 160, 0.5),
+        0 2px 4px rgba(50, 8, 6, 0.4);
+      position: relative;
+    }
+    .pep::before, .pep::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(110, 22, 12, 0.6);
+    }
+    .pep::before { width: 6px; height: 6px; top: 6px; left: 18px; }
+    .pep::after { width: 4px; height: 4px; top: 18px; left: 7px; }
+
+    .basil {
+      width: 22px;
+      height: 26px;
+      background: radial-gradient(circle at 38% 28%, #6CC65F, #2E7D32 82%);
+      border-radius: 0 50% 0 50%;
+      box-shadow: inset 0 0 5px rgba(18, 64, 20, 0.55), 0 1px 3px rgba(20, 50, 15, 0.4);
+      position: relative;
+    }
+    .basil::after {
+      content: '';
+      position: absolute;
+      left: 50%; top: 12%;
+      width: 1.5px; height: 70%;
+      background: rgba(225, 255, 220, 0.55);
+      transform: translateX(-50%) rotate(45deg);
+      transform-origin: center;
+    }
+
+    .pepper {
+      width: 18px;
+      height: 11px;
+      border-radius: 8px;
+      background: radial-gradient(circle at 34% 28%, #88D957, #4E9E2E 92%);
+      box-shadow: inset 0 -2px 4px rgba(28, 66, 18, 0.55), 0 1px 2px rgba(20, 50, 15, 0.35);
+    }
+
+    .intro-text {
+      text-align: center;
+      opacity: 0;
+      animation: text-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 2.5s forwards;
+    }
+
+    .intro-text .line {
+      width: 40px;
+      height: 2px;
+      background: var(--red);
+      margin: 0 auto 18px;
+      transform: scaleX(0);
+      transform-origin: center;
+      animation: line-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.7s forwards;
+    }
+
+    @keyframes slice-float {
+      0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+      50% { transform: translateY(-9px) rotate(1.5deg); }
+    }
+    @keyframes glow-in { to { opacity: 1; } }
+    @keyframes slice-in {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    @keyframes crust-in {
+      from { transform: scaleX(0); opacity: 0; }
+      to { transform: scaleX(1); opacity: 1; }
+    }
+    @keyframes gloss-sweep {
+      0% { background-position: 150% 0; opacity: 0; }
+      18% { opacity: 1; }
+      100% { background-position: -90% 0; opacity: 0; }
+    }
+    @keyframes topping-drop {
+      0%   { transform: translateY(-340px) scale(0.85); opacity: 0; }
+      8%   { opacity: 1; }
+      58%  { transform: translateY(5px) scale(1); }
+      72%  { transform: translateY(0) scaleX(1.18) scaleY(0.82); }
+      86%  { transform: translateY(0) scaleX(0.94) scaleY(1.06); }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    @keyframes shadow-in {
+      0%, 55% { opacity: 0; transform: translate(-50%, 0) scale(0.3); }
+      72% { opacity: 0.5; transform: translate(-50%, 0) scale(1.1); }
+      100% { opacity: 0.34; transform: translate(-50%, 0) scale(1); }
+    }
+    @keyframes bake-glow {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(238, 110, 50, 0)); }
+      50% { filter: drop-shadow(0 0 22px rgba(238, 110, 50, 0.7)); }
+    }
+    @keyframes text-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes line-draw { to { transform: scaleX(1); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slice-stage { animation: none; }
+      .intro .chip, .intro .chip-shadow { animation-duration: 0.01s; }
     }
   </style>
 </head>
@@ -427,26 +736,72 @@
       try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
     };
 
-    // ─── Icons ───────────────────────────────────────────────────────────────────
-    const MicIcon = () => (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
+    const fmt = (n) => typeof n === 'number' ? n.toLocaleString() : n;
+
+    // ─── Billing constants (kept in sync with the backend /order logic) ──────────
+    const TAX_RATE = 0.13;              // 13% tax
+    const DELIVERY_FEE = 149;           // flat delivery fee below the free-delivery threshold
+    const FREE_DELIVERY_THRESHOLD = 1500;
+
+    // Compute a live bill from a set of cart picks ({ name, price }).
+    const computeBill = (picks) => {
+      const subtotal = (picks || []).reduce((s, p) => s + (Number(p.price) || 0), 0);
+      const deliveryFee = subtotal === 0 ? 0 : (subtotal < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0);
+      const tax = Math.round(subtotal * TAX_RATE);
+      const grandTotal = subtotal + deliveryFee + tax;
+      return { subtotal, deliveryFee, tax, grandTotal };
+    };
+
+    // Spell a name out letter-by-letter ("Ali Khan" -> "A-L-I K-H-A-N") so the
+    // voice assistant can confirm / pronounce the exact spelling from the profile.
+    const spellOut = (name) => (name || '')
+      .trim()
+      .split(/\s+/)
+      .map(word => word.split('').join('-').toUpperCase())
+      .join('  ');
+
+    // ─── Icons (minimal line set, no emoji) ───────────────────────────────────────
+    const Icon = ({ d, size = 18, sw = 1.6, children, ...rest }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" {...rest}>
+        {d ? <path d={d} /> : children}
       </svg>
+    );
+
+    const MicIcon = () => (
+      <Icon size={26} sw={1.6}>
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" />
+      </Icon>
     );
 
     const PhoneOff = () => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Icon size={16} sw={1.7}>
         <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07C9.44 16.29 8.23 15.08 7.28 13.72A19.73 19.73 0 0 1 4.21 5.09 2 2 0 0 1 6.18 3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L10.68 10.94" />
-        <line x1="23" y1="1" x2="1" y2="23" />
-      </svg>
+        <line x1="22" y1="2" x2="2" y2="22" />
+      </Icon>
     );
 
-    const Pizza = () => <span style={{ fontSize: '20px' }}>🍕</span>;
-    const Checkmark = () => <span style={{ fontSize: '14px' }}>✅</span>;
+    // Brand mark — a clean pizza-slice glyph, not an emoji
+    const SliceMark = ({ size = 18 }) => (
+      <Icon size={size} sw={1.6}>
+        <path d="M3.5 8.2c5.2-3.1 11.8-3.1 17 0L12 21z" />
+        <path d="M3.5 8.2c-.7-1.2-.3-2.2 1-2.7C9.2 3.7 14.8 3.7 19.5 5.5c1.3.5 1.7 1.5 1 2.7" />
+        <circle cx="9.5" cy="10.5" r="0.5" fill="currentColor" stroke="none" />
+        <circle cx="13.5" cy="11.5" r="0.5" fill="currentColor" stroke="none" />
+        <circle cx="11.5" cy="15" r="0.5" fill="currentColor" stroke="none" />
+      </Icon>
+    );
 
-    // ─── Sound Wave Animation ────────────────────────────────────────────────────
+    const PhoneIcon = () => <Icon size={15} sw={1.6} d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />;
+    const PinIcon = () => <Icon size={15} sw={1.6}><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></Icon>;
+    const MailIcon = () => <Icon size={15} sw={1.6}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></Icon>;
+    const ClockIcon = () => <Icon size={14} sw={1.6}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Icon>;
+    const GridIcon = () => <Icon size={15} sw={1.6}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></Icon>;
+    const UserIcon = () => <Icon size={15} sw={1.6}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></Icon>;
+    const BagIcon = ({ size = 26 }) => <Icon size={size} sw={1.5}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></Icon>;
+
+    // ─── Sound Wave ────────────────────────────────────────────────────────────
     const SoundWave = ({ active, color = "#fff" }) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '24px' }}>
         {[0.6, 1, 0.75, 1, 0.6].map((h, i) => (
@@ -464,10 +819,10 @@
     // ─── Typing Indicator ────────────────────────────────────────────────────────
     const TypingIndicator = () => (
       <div className="chat-bubble" style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 }}>S</div>
-        <div className="glass-card" style={{ padding: '14px 18px', borderRadius: '18px 18px 18px 4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '13px', color: 'var(--red)', flexShrink: 0 }}>S</div>
+        <div className="panel-2" style={{ padding: '14px 18px', borderRadius: '14px 14px 14px 4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
           {[0, 0.2, 0.4].map((d, i) => (
-            <div key={i} className="dot-blink" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'rgba(255,255,255,0.6)', animationDelay: `${d}s` }} />
+            <div key={i} className="dot-blink" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--muted)', animationDelay: `${d}s` }} />
           ))}
         </div>
       </div>
@@ -482,17 +837,17 @@
           flexDirection: isUser ? 'row-reverse' : 'row'
         }}>
           {!isUser && (
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>S</div>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '13px', color: 'var(--red)', flexShrink: 0 }}>S</div>
           )}
           <div style={{
-            maxWidth: '75%', padding: '12px 16px',
-            borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-            background: isUser ? 'var(--red)' : 'rgba(255,255,255,0.07)',
-            border: isUser ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            maxWidth: '76%', padding: '11px 15px',
+            borderRadius: isUser ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+            background: isUser ? 'var(--red)' : 'var(--surface-2)',
+            border: isUser ? 'none' : '1px solid var(--line)',
             fontSize: '14px', lineHeight: '1.55', color: '#fff'
           }}>
             {msg.content}
-            <div style={{ fontSize: '10px', opacity: 0.5, marginTop: '4px', textAlign: isUser ? 'right' : 'left' }}>
+            <div className="mono" style={{ fontSize: '9.5px', opacity: 0.45, marginTop: '5px', textAlign: isUser ? 'right' : 'left' }}>
               {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
@@ -501,32 +856,30 @@
     };
 
     // ─── Profile / Dashboard Card ─────────────────────────────────────────────────
-    // Shows the registered customer's saved details. Sarah reads these back on a call.
     const ProfileCard = ({ profile, onEdit }) => (
-      <div className="glass-card-red" style={{ borderRadius: '20px', padding: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '17px', flexShrink: 0 }}>
+      <div className="panel" style={{ borderRadius: '14px', padding: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter Tight, sans-serif', fontWeight: 700, fontSize: '16px', flexShrink: 0 }}>
             {(profile.name || 'U').trim().charAt(0).toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Welcome back 👋</div>
+            <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
+            <div className="mono" style={{ fontSize: '10px', color: 'var(--faint)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '2px' }}>Saved profile</div>
           </div>
-          <button onClick={onEdit} className="tag" style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)' }}>Edit</button>
+          <button onClick={onEdit} className="pill-btn" style={{ marginLeft: 'auto', padding: '6px 12px' }}>Edit</button>
         </div>
-        {[['📞', profile.phone], ['📍', profile.address], ['✉️', profile.email]].map(([icon, val]) => (
-          <div key={icon} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12.5px', color: 'rgba(255,255,255,0.7)', padding: '5px 0' }}>
-            <span style={{ flexShrink: 0 }}>{icon}</span><span style={{ wordBreak: 'break-word' }}>{val}</span>
+        {[[<PhoneIcon />, profile.phone], [<PinIcon />, profile.address], [<MailIcon />, profile.email]].map(([icon, val], i) => (
+          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: 'var(--muted)', padding: '6px 0' }}>
+            <span style={{ flexShrink: 0, color: 'var(--faint)', marginTop: '1px' }}>{icon}</span><span style={{ wordBreak: 'break-word' }}>{val}</span>
           </div>
         ))}
-        <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-          Sarah will read your number &amp; address back and confirm before placing the order.
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--line)', fontSize: '11.5px', color: 'var(--faint)', lineHeight: 1.5 }}>
+          The assistant confirms your number and address by voice before placing the order.
         </div>
       </div>
     );
 
     // ─── Registration Modal ───────────────────────────────────────────────────────
-    // Captures name, +92 phone, address and email; persists to localStorage.
     const RegisterModal = ({ initial, onSave, onClose, canSkip }) => {
       const [name, setName] = useState(initial?.name || '');
       const [phone, setPhone] = useState(() => (initial?.phone || '').replace(/^\+92\s?/, ''));
@@ -560,19 +913,19 @@
       return (
         <div className="modal-overlay" onClick={canSkip ? onClose : undefined}>
           <div className="modal-card" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '26px 26px 8px' }}>
-              <div style={{ fontSize: '34px', marginBottom: '6px' }}>🍕</div>
-              <div className="font-display" style={{ fontWeight: 800, fontSize: '22px' }}>
+            <div style={{ padding: '28px 28px 8px' }}>
+              <div className="eyebrow" style={{ marginBottom: '14px' }}>{initial ? 'Edit details' : 'Get started'}</div>
+              <div className="font-display" style={{ fontWeight: 600, fontSize: '23px' }}>
                 {initial ? 'Edit your details' : 'Welcome to Pizza Hut'}
               </div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '6px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '13.5px', color: 'var(--muted)', marginTop: '8px', lineHeight: 1.55 }}>
                 {initial
-                  ? 'Update your saved info — Sarah will use it on your next order.'
-                  : 'Save your details once so Sarah can confirm them by voice instead of asking each time.'}
+                  ? 'Update your saved info — the assistant will use it on your next order.'
+                  : 'Save your details once so the assistant can confirm them by voice instead of asking each time.'}
               </div>
             </div>
 
-            <div style={{ padding: '18px 26px 26px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ padding: '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div>
                 <label className="field-label">Full Name</label>
                 <input className="field-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ali Khan" />
@@ -582,10 +935,10 @@
               <div>
                 <label className="field-label">Phone Number</label>
                 <div style={{ display: 'flex' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', padding: '0 13px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRight: 'none', borderRadius: '12px 0 0 12px', color: 'rgba(255,255,255,0.75)', fontSize: '14px', fontWeight: 600 }}>+92</span>
+                  <span className="mono" style={{ display: 'flex', alignItems: 'center', padding: '0 13px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRight: 'none', borderRadius: '10px 0 0 10px', color: 'var(--muted)', fontSize: '13px' }}>+92</span>
                   <input
                     className="field-input"
-                    style={{ borderRadius: '0 12px 12px 0' }}
+                    style={{ borderRadius: '0 10px 10px 0' }}
                     value={phone}
                     onChange={e => setPhone(e.target.value.replace(/[^\d]/g, '').slice(0, 11))}
                     placeholder="300 1234567"
@@ -601,7 +954,7 @@
               </div>
 
               <div>
-                <label className="field-label">Email (Gmail)</label>
+                <label className="field-label">Email</label>
                 <input className="field-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@gmail.com" />
                 {err.email && <div className="field-err">{err.email}</div>}
               </div>
@@ -614,8 +967,8 @@
                   <button className="btn-ghost" onClick={onClose}>Skip for now</button>
                 )}
               </div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 1.5 }}>
-                Saved on this device only (localStorage). No account needed.
+              <div style={{ fontSize: '11px', color: 'var(--faint)', textAlign: 'center', lineHeight: 1.5 }}>
+                Saved on this device only. No account needed.
               </div>
             </div>
           </div>
@@ -624,34 +977,181 @@
     };
 
     // ─── Full Menu Modal ──────────────────────────────────────────────────────────
-    // Lets users browse the whole menu themselves, add picks, then hand off to Sarah.
+    // Unit price for a pizza given size / crust / selected add-ons — mirrors the
+    // backend /order pricing (crust_prices per size, else base + crust extra).
+    const pizzaUnitPrice = (pizza, size, crust, selectedAddOns, crusts) => {
+      const cp = pizza.crust_prices && pizza.crust_prices[size];
+      let base;
+      if (cp && cp[crust] != null) {
+        base = cp[crust];
+      } else {
+        const c = (crusts || []).find(x => x.name === crust);
+        base = (pizza.prices?.[size] || 0) + (c ? c.extra_price : 0);
+      }
+      const addTotal = (selectedAddOns || []).reduce((s, a) => s + (a.price || 0), 0);
+      return base + addTotal;
+    };
+
+    // Configurator: pick size, crust, toppings and quantity — the same choices the
+    // assistant asks for, offered as an on-screen alternative.
+    const PizzaConfigurator = ({ pizza, crusts, addOns, onAdd, onClose }) => {
+      const sizes = Object.keys(pizza.prices || { Medium: 0 });
+      const crustNames = (crusts && crusts.length ? crusts.map(c => c.name) : ['Pan']);
+      const [size, setSize] = useState(sizes.includes('Medium') ? 'Medium' : sizes[0]);
+      const [crust, setCrust] = useState(crustNames.includes('Pan') ? 'Pan' : crustNames[0]);
+      const [selected, setSelected] = useState([]);   // selected add-on objects
+      const [quantity, setQuantity] = useState(1);
+
+      const toggleAddOn = (a) => setSelected(prev =>
+        prev.some(x => x.name === a.name) ? prev.filter(x => x.name !== a.name) : [...prev, a]);
+
+      const unit = pizzaUnitPrice(pizza, size, crust, selected, crusts);
+      const lineTotal = unit * quantity;
+
+      const Pill = ({ active, onClick, children, sub }) => (
+        <button
+          onClick={onClick}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+            padding: '9px 14px', borderRadius: '11px', cursor: 'pointer',
+            border: `1px solid ${active ? 'var(--red)' : 'var(--line)'}`,
+            background: active ? 'rgba(228,30,38,0.08)' : 'var(--surface-2)',
+            color: active ? 'var(--red)' : 'var(--text)', fontSize: '13px', fontWeight: 500,
+            transition: 'all .12s',
+          }}>
+          {children}
+          {sub != null && <span className="mono" style={{ fontSize: '10.5px', color: active ? 'var(--red)' : 'var(--faint)' }}>{sub}</span>}
+        </button>
+      );
+
+      const Group = ({ label, children }) => (
+        <div style={{ marginBottom: '18px' }}>
+          <div className="eyebrow" style={{ marginBottom: '10px' }}>{label}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>{children}</div>
+        </div>
+      );
+
+      const confirm = () => {
+        const addNames = selected.map(a => a.name);
+        const id = `${pizza.id}|${size}|${crust}|${addNames.slice().sort().join('+')}`;
+        const display = [pizza.name, size, crust, ...addNames].join(' · ');
+        onAdd({ id, baseId: pizza.id, baseName: pizza.name, name: display, size, crust, addOns: addNames, unitPrice: unit, quantity, price: lineTotal });
+        onClose();
+      };
+
+      return (
+        <div className="modal-overlay" style={{ zIndex: 30 }} onClick={onClose}>
+          <div className="modal-card" style={{ maxWidth: '440px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <div className="font-display" style={{ fontWeight: 600, fontSize: '18px' }}>{pizza.name}</div>
+                {pizza.description && <div style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '3px' }}>{pizza.description}</div>}
+              </div>
+              <button className="add-btn" onClick={onClose} title="Back">✕</button>
+            </div>
+
+            <div className="scrollable" style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+              <Group label="Size">
+                {sizes.map(s => <Pill key={s} active={size === s} onClick={() => setSize(s)} sub={`Rs ${fmt(pizza.prices?.[s] || 0)}`}>{s}</Pill>)}
+              </Group>
+              <Group label="Crust">
+                {crustNames.map(cn => {
+                  const cp = pizza.crust_prices && pizza.crust_prices[size];
+                  const cObj = (crusts || []).find(c => c.name === cn);
+                  const price = cp && cp[cn] != null ? cp[cn] : (pizza.prices?.[size] || 0) + (cObj ? cObj.extra_price : 0);
+                  return <Pill key={cn} active={crust === cn} onClick={() => setCrust(cn)} sub={`Rs ${fmt(price)}`}>{cn}</Pill>;
+                })}
+              </Group>
+              {addOns.length > 0 && (
+                <Group label="Toppings & extras">
+                  {addOns.map(a => (
+                    <Pill key={a.name} active={selected.some(x => x.name === a.name)} onClick={() => toggleAddOn(a)} sub={`+Rs ${fmt(a.price)}`}>{a.name}</Pill>
+                  ))}
+                </Group>
+              )}
+              <div style={{ marginBottom: '4px' }}>
+                <div className="eyebrow" style={{ marginBottom: '10px' }}>Quantity</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button className="add-btn" onClick={() => setQuantity(q => Math.max(1, q - 1))} title="Less">−</button>
+                  <span className="mono" style={{ fontSize: '16px', minWidth: '22px', textAlign: 'center' }}>{quantity}</span>
+                  <button className="add-btn" onClick={() => setQuantity(q => q + 1)} title="More">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--faint)' }}>Item total</div>
+                <div className="mono" style={{ fontSize: '17px', fontWeight: 600 }}>Rs {fmt(lineTotal)}</div>
+              </div>
+              <button className="btn-primary" onClick={confirm}>Add to cart</button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const FullMenuModal = ({ menu, picks, onAdd, onRemove, onClose, onHandoff }) => {
       if (!menu) return null;
 
       const inPicks = (id) => picks.some(p => p.id === id);
+      const bill = computeBill(picks);
 
+      // The pizza currently being configured (size / crust / toppings), or null.
+      const [configuring, setConfiguring] = useState(null);
+
+      const crusts = menu.crusts || [];
+      const addOns = menu.add_ons || [];
+
+      // Count how many cart lines came from a given base pizza id.
+      const pizzaCount = (baseId) => picks.filter(p => p.baseId === baseId).reduce((n, p) => n + (p.quantity || 1), 0);
+
+      // Simple add/remove row for non-pizza items (sides, drinks, desserts, deals).
       const Row = ({ id, name, desc, price, priceLabel }) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 13px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px' }}>
+        <div className="menu-row">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '14px', fontWeight: 600 }}>{name}</div>
-            {desc && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>{desc}</div>}
+            <div style={{ fontSize: '14.5px', fontWeight: 500 }}>{name}</div>
+            {desc && <div style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '3px', lineHeight: 1.45 }}>{desc}</div>}
           </div>
-          <div style={{ fontSize: '13px', color: '#FF9999', fontWeight: 700, whiteSpace: 'nowrap' }}>
-            {priceLabel || `PKR ${price.toLocaleString()}`}
+          <div className="mono" style={{ fontSize: '12.5px', color: 'var(--text)', whiteSpace: 'nowrap' }}>
+            {priceLabel || `Rs ${fmt(price)}`}
           </div>
           <button
             className={`add-btn ${inPicks(id) ? 'added' : ''}`}
-            title={inPicks(id) ? 'Remove from picks' : 'Add to picks'}
-            onClick={() => inPicks(id) ? onRemove(id) : onAdd({ id, name, price })}>
+            title={inPicks(id) ? 'Remove from cart' : 'Add to cart'}
+            onClick={() => inPicks(id) ? onRemove(id) : onAdd({ id, baseId: id, baseName: name, name, unitPrice: price, quantity: 1, price })}>
             {inPicks(id) ? '✓' : '+'}
           </button>
         </div>
       );
 
-      const Section = ({ title, children }) => (
-        <div style={{ marginBottom: '22px' }}>
-          <div className="font-display" style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>{title}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>{children}</div>
+      // Pizza row — opens the configurator instead of adding directly.
+      const PizzaRow = ({ pizza, priceLabel }) => {
+        const count = pizzaCount(pizza.id);
+        return (
+          <div className="menu-row">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14.5px', fontWeight: 500 }}>{pizza.name}</div>
+              {pizza.description && <div style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '3px', lineHeight: 1.45 }}>{pizza.description}</div>}
+            </div>
+            <div className="mono" style={{ fontSize: '12.5px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{priceLabel}</div>
+            <button
+              className={`add-btn ${count > 0 ? 'added' : ''}`}
+              title="Choose size, crust & toppings"
+              onClick={() => setConfiguring(pizza)}>
+              {count > 0 ? count : '+'}
+            </button>
+          </div>
+        );
+      };
+
+      const Section = ({ title, count, children }) => (
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '6px' }}>
+            <div className="eyebrow">{title}</div>
+            <div className="mono" style={{ fontSize: '10px', color: 'var(--dim)' }}>{count}</div>
+          </div>
+          <div>{children}</div>
         </div>
       );
 
@@ -659,7 +1159,7 @@
         if (!prices) return '';
         const vals = Object.values(prices).filter(v => typeof v === 'number');
         if (!vals.length) return '';
-        return `from PKR ${Math.min(...vals).toLocaleString()}`;
+        return `from Rs ${Math.min(...vals).toLocaleString()}`;
       };
       const pizzaBasePrice = (p) => {
         const vals = Object.values(p.prices || {}).filter(v => typeof v === 'number');
@@ -668,67 +1168,123 @@
 
       return (
         <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-card" style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-card" style={{ maxWidth: '580px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, background: '#1f1f1f', zIndex: 2, borderRadius: '24px 24px 0 0' }}>
-              <div style={{ width: '38px', height: '38px', background: 'var(--red)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🍕</div>
+            <div style={{ padding: '24px 26px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2, borderRadius: '18px 18px 0 0' }}>
+              <div style={{ color: 'var(--red)' }}><SliceMark size={22} /></div>
               <div style={{ flex: 1 }}>
-                <div className="font-display" style={{ fontWeight: 800, fontSize: '18px' }}>Explore the Menu</div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>Browse freely, then hand off to Sarah to order</div>
+                <div className="font-display" style={{ fontWeight: 600, fontSize: '19px' }}>The Menu</div>
+                <div style={{ fontSize: '12.5px', color: 'var(--faint)', marginTop: '2px' }}>Browse freely, then hand off to the assistant to order</div>
               </div>
               <button className="add-btn" onClick={onClose} title="Close">✕</button>
             </div>
 
             {/* Scrollable body */}
-            <div className="scrollable" style={{ padding: '20px 24px', flex: 1 }}>
+            <div className="scrollable" style={{ padding: '22px 26px', flex: 1 }}>
               {menu.pizzas?.length > 0 && (
-                <Section title="Pizzas">
+                <Section title="Pizzas" count={menu.pizzas.length}>
                   {menu.pizzas.map(p => (
-                    <Row key={p.id} id={p.id} name={p.name} desc={p.description}
-                      price={pizzaBasePrice(p)} priceLabel={sizeLabel(p.prices)} />
+                    <PizzaRow key={p.id} pizza={p} priceLabel={sizeLabel(p.prices)} />
                   ))}
                 </Section>
               )}
               {menu.deals?.length > 0 && (
-                <Section title="Deals">
+                <Section title="Deals" count={menu.deals.length}>
                   {menu.deals.map(d => (
                     <Row key={d.id} id={d.id} name={d.name} desc={d.description} price={d.price} />
                   ))}
                 </Section>
               )}
               {menu.sides?.length > 0 && (
-                <Section title="Sides">
+                <Section title="Sides" count={menu.sides.length}>
                   {menu.sides.map(s => <Row key={s.id} id={s.id} name={s.name} price={s.price} />)}
                 </Section>
               )}
               {menu.drinks?.length > 0 && (
-                <Section title="Drinks">
+                <Section title="Drinks" count={menu.drinks.length}>
                   {menu.drinks.map(d => <Row key={d.id} id={d.id} name={d.name} price={d.price} />)}
                 </Section>
               )}
               {menu.desserts?.length > 0 && (
-                <Section title="Desserts">
+                <Section title="Desserts" count={menu.desserts.length}>
                   {menu.desserts.map(d => <Row key={d.id} id={d.id} name={d.name} price={d.price} />)}
                 </Section>
               )}
             </div>
 
-            {/* Picks tray / handoff */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '16px 24px', background: '#1f1f1f', position: 'sticky', bottom: 0, borderRadius: '0 0 24px 24px' }}>
-              {picks.length > 0 && (
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginBottom: '12px', lineHeight: 1.5 }}>
-                  <span style={{ color: '#FF9999', fontWeight: 700 }}>{picks.length} pick{picks.length > 1 ? 's' : ''}:</span>{' '}
-                  {picks.map(p => p.name).join(', ')}
+            {/* Cart / live bill tray */}
+            <div style={{ borderTop: '1px solid var(--line)', padding: '18px 26px', background: 'var(--surface)', position: 'sticky', bottom: 0, borderRadius: '0 0 18px 18px' }}>
+              {picks.length > 0 ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span className="mono" style={{ color: 'var(--red)', fontSize: '11px', letterSpacing: '0.06em' }}>
+                      {picks.length} ITEM{picks.length > 1 ? 'S' : ''} IN CART
+                    </span>
+                    <span style={{ fontSize: '10.5px', color: 'var(--faint)' }}>Estimate · final price confirmed by the assistant</span>
+                  </div>
+
+                  {/* Line items */}
+                  <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', maxHeight: '132px', overflowY: 'auto' }}>
+                    {picks.map(p => (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{p.name}</div>
+                          {(p.quantity || 1) > 1 && (
+                            <div className="mono" style={{ fontSize: '10.5px', color: 'var(--faint)', marginTop: '1px' }}>{p.quantity} × Rs {fmt(p.unitPrice || p.price)}</div>
+                          )}
+                        </div>
+                        <span className="mono" style={{ fontSize: '12.5px', color: 'var(--text)', whiteSpace: 'nowrap' }}>Rs {fmt(p.price)}</span>
+                        <button className="add-btn added" title="Remove from cart" onClick={() => onRemove(p.id)}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bill breakdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px', paddingTop: '12px', borderTop: '1px solid var(--line)' }}>
+                    {[
+                      ['Subtotal', bill.subtotal],
+                      ['Delivery', bill.deliveryFee === 0 ? 'Free' : bill.deliveryFee],
+                      ['Tax (13%)', bill.tax],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--muted)' }}>
+                        <span>{label}</span>
+                        <span className="mono" style={{ color: val === 'Free' ? 'var(--green)' : 'var(--muted)' }}>{typeof val === 'number' ? `Rs ${fmt(val)}` : val}</span>
+                      </div>
+                    ))}
+                    {bill.deliveryFee > 0 && (
+                      <div style={{ fontSize: '11px', color: 'var(--faint)' }}>
+                        Add Rs {fmt(FREE_DELIVERY_THRESHOLD - bill.subtotal)} more for free delivery
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '15px', marginTop: '6px', paddingTop: '10px', borderTop: '1px solid var(--line)' }}>
+                      <span>Total</span>
+                      <span className="mono" style={{ fontSize: '15px' }}>Rs {fmt(bill.grandTotal)}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: '12.5px', color: 'var(--faint)', marginBottom: '14px', textAlign: 'center', lineHeight: 1.5 }}>
+                  Add items to build your order — your bill updates here with tax and delivery as you go.
                 </div>
               )}
-              <button className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onHandoff}>
-                🎙️ {picks.length > 0 ? 'Hand off to Sarah to order' : 'Order with Sarah'}
+              <button className="btn-primary" style={{ width: '100%' }} onClick={onHandoff}>
+                {picks.length > 0 ? 'Hand off to the assistant to order' : 'Order with the assistant'}
               </button>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '8px' }}>
-                Sarah will confirm your picks, address &amp; number, then place the order.
+              <div style={{ fontSize: '11px', color: 'var(--faint)', textAlign: 'center', marginTop: '10px' }}>
+                The assistant confirms your picks, address and number, then places the order.
               </div>
             </div>
           </div>
+
+          {configuring && (
+            <PizzaConfigurator
+              pizza={configuring}
+              crusts={crusts}
+              addOns={addOns}
+              onAdd={onAdd}
+              onClose={() => setConfiguring(null)}
+            />
+          )}
         </div>
       );
     };
@@ -736,56 +1292,55 @@
     // ─── Order Summary ────────────────────────────────────────────────────────────
     const OrderSummary = ({ order, loading }) => {
       if (loading) return (
-        <div className="glass-card" style={{ borderRadius: '20px', padding: '20px', textAlign: 'center' }}>
-          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>Calculating order…</div>
+        <div className="panel" style={{ borderRadius: '14px', padding: '22px', textAlign: 'center' }}>
+          <div style={{ color: 'var(--faint)', fontSize: '13px' }}>Calculating order…</div>
         </div>
       );
       if (!order) return (
-        <div className="glass-card" style={{ borderRadius: '20px', padding: '24px', textAlign: 'center' }}>
-          <div style={{ fontSize: '36px', marginBottom: '10px' }}>🛒</div>
-          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 600, marginBottom: '6px', color: 'rgba(255,255,255,0.7)' }}>No Order Yet</div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>Start talking to Sarah to place your order</div>
+        <div className="panel" style={{ borderRadius: '14px', padding: '28px 24px', textAlign: 'center' }}>
+          <div style={{ color: 'var(--dim)', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><BagIcon /></div>
+          <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, marginBottom: '6px', color: 'var(--muted)', fontSize: '14px' }}>No order yet</div>
+          <div style={{ fontSize: '12.5px', color: 'var(--faint)', lineHeight: 1.5 }}>Start talking to the assistant to place your order</div>
         </div>
       );
       return (
-        <div className="glass-card-red" style={{ borderRadius: '20px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Pizza />
-            <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '15px' }}>Order #{order.order_id}</span>
-            <span className="tag" style={{ background: 'rgba(34,197,94,0.2)', color: '#4ADE80', marginLeft: 'auto' }}>Confirmed</span>
+        <div className="panel" style={{ borderRadius: '14px', padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+            <span className="mono" style={{ fontSize: '12px', color: 'var(--muted)' }}>#{order.order_id}</span>
+            <span className="tag" style={{ background: 'rgba(74,222,128,0.14)', color: 'var(--green)', marginLeft: 'auto' }}>Confirmed</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
             {order.items.map((item, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px' }}>
+              <div key={i} style={{ paddingBottom: '12px', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: 600, fontSize: '14px' }}>{item.pizza}</span>
-                  <span style={{ fontWeight: 700, fontSize: '14px', color: '#FF9999' }}>PKR {item.total.toLocaleString()}</span>
+                  <span style={{ fontWeight: 500, fontSize: '14px' }}>{item.pizza}</span>
+                  <span className="mono" style={{ fontSize: '13px', color: 'var(--text)' }}>Rs {fmt(item.total)}</span>
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
-                  {item.size} · {item.crust} · Qty: {item.quantity}
+                <div style={{ fontSize: '11.5px', color: 'var(--faint)' }}>
+                  {item.size} · {item.crust} · Qty {item.quantity}
                   {item.add_ons?.length > 0 && <span> · {item.add_ons.join(', ')}</span>}
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[
               ['Subtotal', order.summary.subtotal],
-              ['Delivery', order.summary.delivery_fee === 0 ? '✅ Free' : order.summary.delivery_fee],
+              ['Delivery', order.summary.delivery_fee === 0 ? 'Free' : order.summary.delivery_fee],
               ['Tax (13%)', order.summary.tax],
             ].map(([label, val]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--muted)' }}>
                 <span>{label}</span>
-                <span>{typeof val === 'number' ? `PKR ${val.toLocaleString()}` : val}</span>
+                <span className="mono" style={{ color: val === 'Free' ? 'var(--green)' : 'var(--muted)' }}>{typeof val === 'number' ? `Rs ${fmt(val)}` : val}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '16px', marginTop: '6px', color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '16px', marginTop: '10px', paddingTop: '12px', borderTop: '1px solid var(--line)' }}>
               <span>Total</span>
-              <span style={{ color: '#FF9999' }}>PKR {order.summary.grand_total.toLocaleString()}</span>
+              <span className="mono" style={{ fontSize: '15px' }}>Rs {fmt(order.summary.grand_total)}</span>
             </div>
           </div>
-          <div style={{ marginTop: '14px', background: 'rgba(204,0,0,0.15)', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🕐</span><span>Estimated delivery: {order.estimated_time}</span>
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+            <span style={{ color: 'var(--faint)' }}><ClockIcon /></span><span>Estimated delivery · {order.estimated_time}</span>
           </div>
         </div>
       );
@@ -795,44 +1350,110 @@
     const MenuPreview = ({ menu, onBrowse }) => {
       if (!menu) return null;
       return (
-        <div className="glass-card" style={{ borderRadius: '20px', padding: '20px' }}>
-          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '14px' }}>Popular Picks</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="panel" style={{ borderRadius: '14px', padding: '20px' }}>
+          <div className="eyebrow" style={{ marginBottom: '14px' }}>Popular picks</div>
+          <div>
             {menu.pizzas.filter(p => p.popular).slice(0, 3).map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{p.name}</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{p.description.slice(0, 35)}…</div>
+              <div key={p.id} className="menu-row" style={{ padding: '11px 0' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13.5px', fontWeight: 500 }}>{p.name}</div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--faint)', marginTop: '2px' }}>{p.description.slice(0, 38)}…</div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#FF9999', fontWeight: 700, textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
-                  from PKR {p.prices.Small ?? p.prices.Personal ?? p.prices.Medium}
+                <div className="mono" style={{ fontSize: '12px', color: 'var(--text)', whiteSpace: 'nowrap', marginLeft: '12px' }}>
+                  Rs {p.prices.Small ?? p.prices.Personal ?? p.prices.Medium}
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '10px' }}>Deals</div>
-            {menu.deals.slice(0, 2).map(d => (
-              <div key={d.id} style={{ background: 'rgba(204,0,0,0.1)', borderRadius: '10px', padding: '10px', marginBottom: '6px', border: '1px solid rgba(204,0,0,0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{d.name}</span>
-                  <span style={{ fontSize: '12px', color: '#FF9999', fontWeight: 700 }}>PKR {d.price.toLocaleString()}</span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '3px' }}>{d.description}</div>
-                <div style={{ fontSize: '10px', color: '#4ADE80', marginTop: '4px' }}>Save PKR {d.saves}</div>
+          <div className="eyebrow" style={{ marginTop: '20px', marginBottom: '12px' }}>Deals</div>
+          {menu.deals.slice(0, 2).map(d => (
+            <div key={d.id} className="panel-2" style={{ borderRadius: '10px', padding: '13px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: 500 }}>{d.name}</span>
+                <span className="mono" style={{ fontSize: '12.5px' }}>Rs {fmt(d.price)}</span>
               </div>
-            ))}
-          </div>
-          {/* Added: open the full browsable menu */}
+              <div style={{ fontSize: '11.5px', color: 'var(--faint)', marginTop: '4px', lineHeight: 1.45 }}>{d.description}</div>
+            </div>
+          ))}
           <button className="btn-ghost" style={{ width: '100%', marginTop: '14px' }} onClick={onBrowse}>
-            🍽️ Browse full menu
+            Browse full menu
           </button>
+        </div>
+      );
+    };
+
+    // ─── Intro Animation ──────────────────────────────────────────────────────────
+    // Builds a pizza — base, sauce, cheese, then toppings dropping in — and finishes
+    // on a "Welcome back" greeting before revealing the app.
+    const IntroLoader = ({ name, onDone }) => {
+      const [leaving, setLeaving] = useState(false);
+      useEffect(() => {
+        const t1 = setTimeout(() => setLeaving(true), 4000);
+        const t2 = setTimeout(() => onDone(), 4650);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      }, [onDone]);
+      const skip = () => { setLeaving(true); setTimeout(onDone, 500); };
+
+      // Toppings clustered within the triangular slice (wider near the crust,
+      // tapering to the tip). Interleaved type order for a natural build-up.
+      const toppings = [
+        { t: 'pep', x: 120, y: 95 },
+        { t: 'pepper', x: 95, y: 120, r: -20 },
+        { t: 'pep', x: 200, y: 90 },
+        { t: 'basil', x: 160, y: 110, r: 0 },
+        { t: 'pep', x: 160, y: 130 },
+        { t: 'pepper', x: 225, y: 120, r: 30 },
+        { t: 'pep', x: 110, y: 150 },
+        { t: 'pep', x: 210, y: 155 },
+        { t: 'basil', x: 125, y: 175, r: -22 },
+        { t: 'pep', x: 160, y: 180 },
+        { t: 'basil', x: 195, y: 180, r: 20 },
+        { t: 'pep', x: 130, y: 210 },
+        { t: 'pep', x: 190, y: 210 },
+        { t: 'pep', x: 160, y: 235 },
+        { t: 'pepper', x: 160, y: 250, r: 60 },
+      ];
+
+      return (
+        <div className={`intro ${leaving ? 'leaving' : ''}`}>
+          <div className="slice-stage">
+            <div className="slice-glow" />
+            <div className="slice-shadow" />
+            <div className="slice-layer slice-base" />
+            <div className="slice-layer slice-cheese" />
+            <div className="slice-gloss" />
+            <div className="slice-crust" />
+            {toppings.map((t, k) => {
+              const delay = `${0.92 + k * 0.09}s`;
+              return (
+                <div key={k} className="topping" style={{ left: `${t.x}px`, top: `${t.y}px` }}>
+                  <div className="chip-shadow" style={{ animationDelay: delay }} />
+                  <div className="chip" style={{ animationDelay: delay }}>
+                    <div className={t.t} style={t.r != null ? { transform: `rotate(${t.r}deg)` } : undefined} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="intro-text">
+            <div className="line" />
+            <div className="font-display" style={{ fontWeight: 600, fontSize: 'clamp(26px, 6vw, 38px)', letterSpacing: '-0.03em' }}>
+              {name ? 'Welcome back' : 'Welcome'}
+            </div>
+            <div className="mono" style={{ fontSize: '12px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--red)', marginTop: '10px' }}>
+              {name ? name : 'to Pizza Hut'}
+            </div>
+          </div>
+
+          <button className="intro-skip" onClick={skip}>Skip</button>
         </div>
       );
     };
 
     // ─── Main App ─────────────────────────────────────────────────────────────────
     function App() {
+      const [showIntro, setShowIntro] = useState(true);
       const [callStatus, setCallStatus] = useState('idle'); // idle | connecting | connected | listening | speaking | processing | ended
       const [messages, setMessages] = useState([]);
       const [order, setOrder] = useState(null);
@@ -843,7 +1464,6 @@
       const [error, setError] = useState(null);
       const [showConfirm, setShowConfirm] = useState(false);
 
-      // ── Added state: profile + registration + menu browsing ──
       const [profile, setProfile] = useState(loadProfile);
       const [showRegister, setShowRegister] = useState(false);
       const [showMenu, setShowMenu] = useState(false);
@@ -851,45 +1471,39 @@
 
       const chatRef = useRef(null);
       const vapiRef = useRef(null);
-      // Keep latest profile/picks accessible inside Vapi event closures
       const profileRef = useRef(profile);
       const picksRef = useRef(picks);
       useEffect(() => { profileRef.current = profile; }, [profile]);
       useEffect(() => { picksRef.current = picks; }, [picks]);
 
-      // First-run: prompt registration if no profile saved yet
       useEffect(() => {
         if (!loadProfile()) setShowRegister(true);
       }, []);
 
-      // Build Sarah's personalized opening line from the saved profile
-      const buildGreeting = useCallback(() => {
-        const p = profileRef.current;
-        const picked = picksRef.current;
-        const pickText = picked && picked.length
-          ? ` I can see you were looking at ${picked.map(x => x.name).join(', ')} — want to go with that?`
-          : '';
-        if (p) {
-          return `Hello ${p.name}! Welcome back to Pizza Hut. I'm Sarah, your AI ordering assistant. ` +
-            `I have your number as ${p.phone} and your delivery address as ${p.address}. ` +
-            `Would you like to use these, or change the number or address before we start?` + pickText;
-        }
-        return "Hello! Welcome to Pizza Hut! I'm Sarah, your AI pizza ordering assistant. I can help you in English. What can I get for you today?";
-      }, []);
-
-      // Load menu on mount
       useEffect(() => {
         fetch(`${API_BASE}/menu`)
           .then(r => r.json())
           .then(d => { if (d.data) setMenu(d.data); })
           .catch(() => {
-            // Use mock menu if backend is offline (now includes all categories for browsing)
             setMenu({
               pizzas: [
-                { id: 'p1', name: 'Chicken Tikka', description: 'Classic chicken tikka flavor with signature sauce', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 } },
-                { id: 'p2', name: 'Chicken Fajita', description: 'Tender chicken fajita with onion and green pepper notes', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 } },
-                { id: 'p3', name: 'Chicken Supreme', description: 'Loaded chicken pizza with premium toppings', popular: true, prices: { Small: 999, Medium: 1499, Large: 2199 } },
-                { id: 'p4', name: 'Pepperoni', description: 'Classic pepperoni pizza with rich tomato base', popular: false, prices: { Small: 1099, Medium: 1599, Large: 2299 } },
+                { id: 'p1', name: 'Chicken Tikka', description: 'Classic chicken tikka flavor with signature sauce', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 },
+                  crust_prices: { Small: { Pan: 899, 'Stuffed Crust': 1099, 'Thin Crust': 999 }, Medium: { Pan: 1399, 'Stuffed Crust': 1699, 'Thin Crust': 1499 }, Large: { Pan: 1999, 'Stuffed Crust': 2399, 'Thin Crust': 2199 } } },
+                { id: 'p2', name: 'Chicken Fajita', description: 'Tender chicken fajita with onion and green pepper notes', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 },
+                  crust_prices: { Small: { Pan: 899, 'Stuffed Crust': 1099, 'Thin Crust': 999 }, Medium: { Pan: 1399, 'Stuffed Crust': 1699, 'Thin Crust': 1499 }, Large: { Pan: 1999, 'Stuffed Crust': 2399, 'Thin Crust': 2199 } } },
+                { id: 'p3', name: 'Chicken Supreme', description: 'Loaded chicken pizza with premium toppings', popular: true, prices: { Small: 999, Medium: 1499, Large: 2199 },
+                  crust_prices: { Small: { Pan: 999, 'Stuffed Crust': 1199, 'Thin Crust': 1099 }, Medium: { Pan: 1499, 'Stuffed Crust': 1799, 'Thin Crust': 1599 }, Large: { Pan: 2199, 'Stuffed Crust': 2599, 'Thin Crust': 2399 } } },
+                { id: 'p4', name: 'Pepperoni', description: 'Classic pepperoni pizza with rich tomato base', popular: false, prices: { Small: 1099, Medium: 1599, Large: 2299 },
+                  crust_prices: { Small: { Pan: 1099, 'Stuffed Crust': 1299, 'Thin Crust': 1199 }, Medium: { Pan: 1599, 'Stuffed Crust': 1899, 'Thin Crust': 1699 }, Large: { Pan: 2299, 'Stuffed Crust': 2699, 'Thin Crust': 2499 } } },
+              ],
+              crusts: [
+                { id: 'c1', name: 'Pan', extra_price: 0 },
+                { id: 'c2', name: 'Thin Crust', extra_price: 200 },
+                { id: 'c3', name: 'Stuffed Crust', extra_price: 400 },
+              ],
+              add_ons: [
+                { id: 'a1', name: 'Extra Cheese', price: 250 },
+                { id: 'a2', name: 'Extra Topping', price: 200 },
               ],
               sides: [
                 { id: 's1', name: 'Garlic Bread', price: 499 },
@@ -917,12 +1531,10 @@
           });
       }, []);
 
-      // Scroll chat to bottom
       useEffect(() => {
         if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
       }, [messages, isTyping]);
 
-      // Load Vapi SDK
       useEffect(() => {
         let cancelled = false;
         const initVapi = async () => {
@@ -936,8 +1548,8 @@
             vapi.on('call-start', () => {
               setCallStatus('connected');
               setError(null);
-              // Personalized greeting if the customer has a saved profile
-              addMessage('sarah', buildGreeting());
+              // No injected greeting — Sarah's spoken first message arrives via the
+              // transcript stream and is shown as a single merged bubble.
             });
             vapi.on('call-end', () => {
               setCallStatus('ended');
@@ -952,18 +1564,21 @@
             });
             vapi.on('message', (msg) => {
               if (msg.type === 'transcript') {
-                if (msg.transcriptType === 'final') {
-                  if (msg.role === 'user') {
-                    addMessage('user', msg.transcript);
+                const role = msg.role === 'user' ? 'user' : 'sarah';
+                const text = (msg.transcript || '').trim();
+                if (!text) return;
+                if (msg.transcriptType === 'partial') {
+                  if (role === 'user') setCallStatus('listening');
+                  upsertTurn(role, text, false);
+                } else if (msg.transcriptType === 'final') {
+                  upsertTurn(role, text, true);
+                  if (role === 'user') {
                     setCallStatus('processing');
-                  } else if (msg.role === 'assistant') {
+                  } else {
                     setIsTyping(false);
-                    addMessage('sarah', msg.transcript);
                     setCallStatus('speaking');
-                    parseOrderFromTranscript(msg.transcript);
+                    parseOrderFromTranscript(text);
                   }
-                } else if (msg.transcriptType === 'partial' && msg.role === 'user') {
-                  setCallStatus('listening');
                 }
               }
               if (msg.type === 'function-call' || msg.type === 'tool-call') {
@@ -987,13 +1602,28 @@
           cancelled = true;
           if (vapiRef.current) vapiRef.current.stop();
         };
-      }, [buildGreeting]);
-
-      const addMessage = useCallback((role, content) => {
-        setMessages(prev => [...prev, { role: role === 'sarah' ? 'sarah' : 'user', content, ts: Date.now() }]);
       }, []);
 
-      // Parse order details from transcript (demo - in production, use Vapi function calls)
+      // Merge a speaker's transcript segments into a single "turn" bubble:
+      // partials update the live bubble, finals are appended to it, and a new
+      // bubble only starts when the other speaker takes over. This keeps each
+      // turn as one message instead of many small chunks.
+      const upsertTurn = useCallback((role, text, isFinal) => {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === role && last.live) {
+            const finals = isFinal ? [last.finals, text].filter(Boolean).join(' ') : last.finals;
+            const content = isFinal ? finals : [last.finals, text].filter(Boolean).join(' ');
+            return [...prev.slice(0, -1), { ...last, finals, content }];
+          }
+          // close any previous live bubble, then open a fresh turn
+          const closed = last && last.live
+            ? [...prev.slice(0, -1), { ...last, live: false }]
+            : prev;
+          return [...closed, { role, content: text, finals: isFinal ? text : '', live: true, ts: Date.now() }];
+        });
+      }, []);
+
       const parseOrderFromTranscript = useCallback((text) => {
         const pizzas = ['Chicken Tikka', 'Chicken Fajita', 'Chicken Supreme', 'Pepperoni'];
         const sizes = ['Small', 'Medium', 'Large'];
@@ -1022,7 +1652,6 @@
           const data = await res.json();
           if (data.status === 'success') { setOrder(data); setShowConfirm(false); }
         } catch {
-          // mock order for demo
           setOrder({
             order_id: 'PHT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
             items: [{ pizza: pizzaName, size, crust: 'Pan', quantity: 1, add_ons: [], total: size === 'Large' ? 1999 : (size === 'Medium' ? 1399 : 899) }],
@@ -1034,8 +1663,6 @@
         setOrderLoading(false);
       }, []);
 
-      // Start the Vapi call, passing the saved profile + picks as overrides so Sarah
-      // greets by name, reads back the number/address, and confirms changes.
       const startCall = useCallback(async () => {
         if (!vapiRef.current) { setError('Voice not ready yet. Please wait…'); return; }
         setCallStatus('connecting');
@@ -1048,21 +1675,24 @@
           let overrides;
           if (p) {
             const pickLine = picked && picked.length
-              ? ` They were just browsing the menu and showed interest in: ${picked.map(x => x.name).join(', ')}.`
-              : '';
+              ? ` I see you were just looking at ${picked.map(x => x.baseName || x.name).join(', ')} — want to start there?`
+              : ' What can I get started for you today?';
             overrides = {
-              // If your Vapi assistant prompt uses {{customerName}} etc., these fill them in.
+              // These are passed to the assistant so it can read the saved number
+              // and address back at the END, when confirming the order — not now.
               variableValues: {
+                // Use the exact name from the saved profile, with its exact spelling.
                 customerName: p.name,
+                // Letter-by-letter spelling so the assistant pronounces / confirms the
+                // name exactly as the customer saved it (e.g. "A-L-I  K-H-A-N").
+                customerNameSpelled: spellOut(p.name),
                 customerPhone: p.phone,
                 customerAddress: p.address,
                 customerEmail: p.email,
                 menuPicks: (picked || []).map(x => x.name).join(', '),
               },
-              // firstMessage works regardless of the dashboard prompt — guarantees the read-back.
-              firstMessage: `Hi ${p.name}! Welcome back to Pizza Hut. I'm Sarah. ` +
-                `I've got your number as ${p.phone} and your delivery address as ${p.address}. ` +
-                `Want to use those, or change the number or address before we order?` + pickLine,
+              // Opening line is just a warm greeting — no detail read-back up front.
+              firstMessage: `Hi ${p.name}! Welcome back to Pizza Hut — I'm Sarah.` + pickLine,
             };
           }
           await vapiRef.current.start(VAPI_ASSISTANT_ID, overrides);
@@ -1092,7 +1722,6 @@
         setIsTyping(false);
       }, []);
 
-      // ── Profile / menu handlers ──
       const handleSaveProfile = useCallback((p) => {
         saveProfile(p);
         setProfile(p);
@@ -1100,13 +1729,21 @@
       }, []);
 
       const addPick = useCallback((item) => {
-        setPicks(prev => prev.some(p => p.id === item.id) ? prev : [...prev, item]);
+        setPicks(prev => {
+          const i = prev.findIndex(p => p.id === item.id);
+          if (i === -1) return [...prev, item];
+          // Same configuration already in cart — bump the quantity instead of duplicating.
+          const next = [...prev];
+          const qty = (next[i].quantity || 1) + (item.quantity || 1);
+          const unit = next[i].unitPrice ?? next[i].price;
+          next[i] = { ...next[i], quantity: qty, unitPrice: unit, price: unit * qty };
+          return next;
+        });
       }, []);
       const removePick = useCallback((id) => {
         setPicks(prev => prev.filter(p => p.id !== id));
       }, []);
 
-      // Hand off from the menu to a voice order with Sarah
       const handoffToSarah = useCallback(() => {
         setShowMenu(false);
         if (callStatus === 'idle' || callStatus === 'ended') {
@@ -1114,14 +1751,13 @@
         }
       }, [callStatus, startCall]);
 
-      // Status label
       const statusLabel = {
         idle: 'Tap mic to start',
-        connecting: 'Connecting to Sarah…',
+        connecting: 'Connecting to the assistant…',
         connected: 'Connected — tap to speak',
         listening: 'Listening…',
         processing: 'Processing…',
-        speaking: 'Sarah is speaking…',
+        speaking: 'Assistant is speaking…',
         ended: 'Call ended — tap to restart'
       }[callStatus] || '';
 
@@ -1131,45 +1767,50 @@
       }[callStatus] || 'status-idle';
 
       const micBtnClass = {
-        idle: 'mic-btn-idle', connecting: 'mic-btn-processing', connected: 'mic-btn-idle',
+        idle: 'mic-btn-idle', connecting: 'mic-btn-processing', connected: 'mic-btn-connected',
         listening: 'mic-btn-listening', processing: 'mic-btn-processing', speaking: 'mic-btn-speaking', ended: 'mic-btn-idle'
       }[callStatus] || 'mic-btn-idle';
 
       const isActive = ['connecting', 'connected', 'listening', 'processing', 'speaking'].includes(callStatus);
 
       return (
-        <div style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-          {/* Background gradient blobs */}
-          <div style={{ position: 'fixed', top: '-100px', left: '-100px', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(204,0,0,0.12) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
-          <div style={{ position: 'fixed', bottom: '-150px', right: '-100px', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(204,0,0,0.08) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
+        <div style={{ minHeight: '100vh', position: 'relative' }}>
+          {showIntro && <IntroLoader name={profile?.name ? profile.name.split(' ')[0] : null} onDone={() => setShowIntro(false)} />}
 
-          <div style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '24px 16px' }}>
+          <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto', padding: '28px 20px 16px' }}>
             {/* Header */}
-            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '44px', height: '44px', background: 'var(--red)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', boxShadow: '0 4px 20px rgba(204,0,0,0.4)' }}>🍕</div>
-                <div>
-                  <h1 className="gradient-text" style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 'clamp(20px, 4vw, 26px)', lineHeight: 1 }}>Talk to Sarah</h1>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em', marginTop: '3px' }}>Your Pizza Hut AI Assistant</p>
-                </div>
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '40px', gap: '12px', flexWrap: 'wrap', paddingBottom: '20px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '36px', height: '36px', background: 'var(--red)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><SliceMark size={20} /></div>
+                <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '17px', letterSpacing: '-0.02em' }}>Pizza Hut</div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Added: quick actions */}
-                <button className="pill-btn" onClick={() => setShowMenu(true)}>🍽️ Menu</button>
+                <button className="pill-btn" onClick={() => setShowMenu(true)}><GridIcon /> Menu</button>
                 <button className="pill-btn" onClick={() => setShowRegister(true)}>
-                  {profile ? '👤 ' + profile.name.split(' ')[0] : '✏️ Sign up'}
+                  <UserIcon /> {profile ? profile.name.split(' ')[0] : 'Sign up'}
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '999px', padding: '8px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--line)', borderRadius: '8px', padding: '8px 13px' }}>
                   <span className={`status-dot ${statusClass}`} />
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{statusLabel}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{statusLabel}</span>
                 </div>
               </div>
             </header>
 
+            {/* Hero */}
+            <div style={{ marginBottom: '32px', maxWidth: '560px' }}>
+              <div className="eyebrow" style={{ marginBottom: '14px' }}>Voice ordering · AI assistant</div>
+              <h1 className="font-display" style={{ fontWeight: 600, fontSize: 'clamp(30px, 6vw, 46px)', lineHeight: 1.04 }}>
+                Order by voice.
+              </h1>
+              <p style={{ fontSize: '15px', color: 'var(--muted)', marginTop: '14px', lineHeight: 1.55 }}>
+                Talk to our AI ordering assistant. It confirms your details and places the order — no forms, no typing.
+              </p>
+            </div>
+
             {error && (
-              <div style={{ background: 'rgba(204,0,0,0.15)', border: '1px solid rgba(204,0,0,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#FF9999' }}>
-                ⚠️ {error}
+              <div style={{ background: 'var(--red-soft)', border: '1px solid var(--red-line)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', fontSize: '13px', color: '#FF9A92' }}>
+                {error}
               </div>
             )}
 
@@ -1178,20 +1819,19 @@
               {/* Left Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Chat Panel */}
-                <div className="glass-card" style={{ borderRadius: '24px', padding: '0', overflow: 'hidden' }}>
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isActive ? '#CC0000' : '#3A3A3A', boxShadow: isActive ? '0 0 10px rgba(204,0,0,0.6)' : 'none', transition: 'all 0.3s' }} />
-                    <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 600, fontSize: '14px' }}>Conversation</span>
+                <div className="panel" style={{ borderRadius: '16px', padding: '0', overflow: 'hidden' }}>
+                  <div style={{ padding: '15px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="eyebrow">Conversation</span>
                     {callStatus === 'speaking' && (
-                      <div style={{ marginLeft: 'auto' }}><SoundWave active={true} color="#CC0000" /></div>
+                      <div style={{ marginLeft: 'auto' }}><SoundWave active={true} color="var(--red)" /></div>
                     )}
                   </div>
                   <div ref={chatRef} className="scrollable chat-scroll" style={{ padding: '20px' }}>
                     {messages.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.3)' }}>
-                        <div style={{ fontSize: '40px', marginBottom: '12px' }}>👋</div>
-                        <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 600, marginBottom: '8px', color: 'rgba(255,255,255,0.5)' }}>Tap the mic to start</div>
-                        <div style={{ fontSize: '12px', lineHeight: 1.6 }}>Sarah speaks English, Urdu &amp; Hinglish</div>
+                      <div style={{ textAlign: 'center', padding: '44px 20px', color: 'var(--faint)' }}>
+                        <div className="mic-icon-blink" style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><MicIcon /></div>
+                        <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, marginBottom: '8px', color: 'var(--muted)', fontSize: '14px' }}>Tap the mic to start</div>
+                        <div style={{ fontSize: '12.5px', lineHeight: 1.6 }}>Your conversation with the assistant appears here</div>
                       </div>
                     )}
                     {messages.map((m, i) => <ChatBubble key={i} msg={m} />)}
@@ -1200,66 +1840,53 @@
                 </div>
 
                 {/* Mic Control */}
-                <div className="glass-card" style={{ borderRadius: '24px', padding: '28px 20px', textAlign: 'center' }}>
+                <div className="panel" style={{ borderRadius: '16px', padding: '32px 20px', textAlign: 'center' }}>
                   <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-                    {/* Pulse rings */}
                     {callStatus === 'listening' && (
                       <>
-                        <div className="pulse-ring" style={{ position: 'absolute', width: '88px', height: '88px', borderRadius: '50%', background: 'rgba(204,0,0,0.2)', top: 0, left: '50%', transform: 'translateX(-50%)' }} />
-                        <div className="pulse-ring" style={{ position: 'absolute', width: '88px', height: '88px', borderRadius: '50%', background: 'rgba(204,0,0,0.15)', top: 0, left: '50%', transform: 'translateX(-50%)', animationDelay: '0.4s' }} />
+                        <div className="pulse-ring" style={{ position: 'absolute', width: '84px', height: '84px', borderRadius: '50%', border: '1px solid var(--red)', top: 0, left: '50%' }} />
+                        <div className="pulse-ring" style={{ position: 'absolute', width: '84px', height: '84px', borderRadius: '50%', border: '1px solid var(--red)', top: 0, left: '50%', animationDelay: '0.5s' }} />
                       </>
                     )}
-                    {/* Main mic button */}
                     <button onClick={handleMicClick} className={micBtnClass}
-                      style={{ width: '88px', height: '88px', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', transform: callStatus === 'listening' ? 'scale(1.08)' : 'scale(1)' }}>
+                      style={{ width: '84px', height: '84px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: callStatus === 'processing' ? 'var(--muted)' : '#fff', transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', transform: callStatus === 'listening' ? 'scale(1.06)' : 'scale(1)' }}>
                       {callStatus === 'connecting' ? (
-                        <div style={{ width: '24px', height: '24px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin-slow 0.7s linear infinite' }} />
+                        <div style={{ width: '22px', height: '22px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin-slow 0.7s linear infinite' }} />
                       ) : callStatus === 'listening' ? (
                         <SoundWave active={true} />
                       ) : (
                         <MicIcon />
                       )}
                     </button>
-                    {/* Status text */}
-                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>{statusLabel}</div>
-                    {/* End call button */}
+                    <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{statusLabel}</div>
                     {isActive && (
-                      <button onClick={handleEndCall} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '999px', padding: '8px 20px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
-                        onMouseOver={e => e.target.style.background = 'rgba(204,0,0,0.2)'}
-                        onMouseOut={e => e.target.style.background = 'rgba(255,255,255,0.08)'}>
-                        <PhoneOff /> End Call
+                      <button onClick={handleEndCall} className="pill-btn" style={{ gap: '8px' }}>
+                        <PhoneOff /> End call
                       </button>
                     )}
-                  </div>
-                  {/* Language badges */}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
-                    {['English'].map(lang => (
-                      <span key={lang} className="tag" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>{lang}</span>
-                    ))}
                   </div>
                 </div>
               </div>
 
               {/* Right Column */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Added: profile dashboard card (only when registered) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {profile && (
                   <>
-                    <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px' }}>Your Profile</div>
+                    <div className="eyebrow" style={{ paddingLeft: '2px' }}>Your profile</div>
                     <ProfileCard profile={profile} onEdit={() => setShowRegister(true)} />
                   </>
                 )}
 
-                <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px', marginTop: profile ? '4px' : 0 }}>Your Order</div>
+                <div className="eyebrow" style={{ paddingLeft: '2px', marginTop: profile ? '6px' : 0 }}>Your order</div>
                 <OrderSummary order={order} loading={orderLoading} />
-                <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px', marginTop: '4px' }}>Menu Highlights</div>
+                <div className="eyebrow" style={{ paddingLeft: '2px', marginTop: '6px' }}>Menu highlights</div>
                 <MenuPreview menu={menu} onBrowse={() => setShowMenu(true)} />
               </div>
             </div>
 
             {/* Footer */}
-            <div style={{ textAlign: 'center', marginTop: '36px', paddingBottom: '16px', color: 'rgba(255,255,255,0.2)', fontSize: '11px', letterSpacing: '0.04em' }}>
-              Pizza Hut Sarah — AI Ordering Assistant · Powered by Vapi &amp; FastAPI
+            <div style={{ textAlign: 'center', marginTop: '44px', paddingTop: '20px', borderTop: '1px solid var(--line)', color: 'var(--dim)', fontSize: '11px' }}>
+              <span className="mono" style={{ letterSpacing: '0.06em' }}>PIZZA HUT · SARAH · AI ORDERING</span>
             </div>
           </div>
 
@@ -1287,13 +1914,13 @@
 
           {/* Order Confirm Overlay */}
           {showConfirm && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
-              <div className="glass-card" style={{ borderRadius: '24px', padding: '32px', maxWidth: '340px', width: '100%', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍕</div>
-                <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>Placing Your Order</div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>Sarah is confirming your order with our kitchen…</div>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+              <div className="panel" style={{ borderRadius: '18px', padding: '34px', maxWidth: '340px', width: '100%', textAlign: 'center' }}>
+                <div style={{ color: 'var(--red)', display: 'flex', justifyContent: 'center', marginBottom: '18px' }}><BagIcon size={30} /></div>
+                <div style={{ fontFamily: 'Inter Tight, sans-serif', fontWeight: 600, fontSize: '18px', marginBottom: '8px' }}>Placing your order</div>
+                <div style={{ fontSize: '13px', color: 'var(--muted)' }}>The assistant is confirming your order with the kitchen…</div>
                 <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
-                  <div style={{ width: '32px', height: '32px', border: '3px solid rgba(204,0,0,0.3)', borderTopColor: '#CC0000', borderRadius: '50%', animation: 'spin-slow 0.8s linear infinite' }} />
+                  <div style={{ width: '30px', height: '30px', border: '2px solid var(--line-strong)', borderTopColor: 'var(--red)', borderRadius: '50%', animation: 'spin-slow 0.8s linear infinite' }} />
                 </div>
               </div>
             </div>
