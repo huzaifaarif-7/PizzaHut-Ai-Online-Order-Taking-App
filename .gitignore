@@ -1,0 +1,27 @@
+# Large installers / binaries — do not commit
+*.dmg
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets / environment
+.env
+.env.*
+*.key
+secrets.json
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+*.swp
+.vscode/
+.idea/
