@@ -270,13 +270,145 @@
       padding: 3px 8px;
       border-radius: 999px;
     }
+
+    /* ─── Added: form + modal styling (matches existing system) ─────────────── */
+    .field-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .field-input:focus {
+      border-color: var(--red);
+    }
+
+    .field-input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 6px;
+      display: block;
+      letter-spacing: 0.03em;
+    }
+
+    .field-err {
+      font-size: 11px;
+      color: #FF8080;
+      margin-top: 5px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(145deg, #CC0000, #8B0000);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(204, 0, 0, 0.45);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-weight: 500;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      padding: 8px 14px;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+
+    .pill-btn:hover {
+      background: rgba(204, 0, 0, 0.18);
+      border-color: rgba(204, 0, 0, 0.3);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      padding: 20px;
+    }
+
+    .modal-card {
+      background: #1f1f1f;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+    }
+
+    .add-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .add-btn:hover {
+      background: rgba(204, 0, 0, 0.25);
+      border-color: rgba(204, 0, 0, 0.4);
+    }
+
+    .add-btn.added {
+      background: var(--red);
+      border-color: var(--red);
+    }
   </style>
 </head>
 
 <body>
-
   <div id="root"></div>
-
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
@@ -284,6 +416,16 @@
     const VAPI_PUBLIC_KEY = "60c45afe-2fdb-417e-96a2-bc339f725237";
     const VAPI_ASSISTANT_ID = "b76cede6-c20e-43b4-8d2a-d21b97627e37";
     const API_BASE = "/api";
+    const PROFILE_KEY = "ph_profile";   // localStorage key for the saved customer profile
+
+    // ─── Profile storage helpers ─────────────────────────────────────────────────
+    const loadProfile = () => {
+      try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+      catch { return null; }
+    };
+    const saveProfile = (p) => {
+      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
+    };
 
     // ─── Icons ───────────────────────────────────────────────────────────────────
     const MicIcon = () => (
@@ -293,12 +435,14 @@
         <line x1="8" y1="23" x2="16" y2="23" />
       </svg>
     );
+
     const PhoneOff = () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07C9.44 16.29 8.23 15.08 7.28 13.72A19.73 19.73 0 0 1 4.21 5.09 2 2 0 0 1 6.18 3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L10.68 10.94" />
         <line x1="23" y1="1" x2="1" y2="23" />
       </svg>
     );
+
     const Pizza = () => <span style={{ fontSize: '20px' }}>🍕</span>;
     const Checkmark = () => <span style={{ fontSize: '14px' }}>✅</span>;
 
@@ -350,6 +494,239 @@
             {msg.content}
             <div style={{ fontSize: '10px', opacity: 0.5, marginTop: '4px', textAlign: isUser ? 'right' : 'left' }}>
               {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Profile / Dashboard Card ─────────────────────────────────────────────────
+    // Shows the registered customer's saved details. Sarah reads these back on a call.
+    const ProfileCard = ({ profile, onEdit }) => (
+      <div className="glass-card-red" style={{ borderRadius: '20px', padding: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '17px', flexShrink: 0 }}>
+            {(profile.name || 'U').trim().charAt(0).toUpperCase()}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Welcome back 👋</div>
+          </div>
+          <button onClick={onEdit} className="tag" style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)' }}>Edit</button>
+        </div>
+        {[['📞', profile.phone], ['📍', profile.address], ['✉️', profile.email]].map(([icon, val]) => (
+          <div key={icon} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12.5px', color: 'rgba(255,255,255,0.7)', padding: '5px 0' }}>
+            <span style={{ flexShrink: 0 }}>{icon}</span><span style={{ wordBreak: 'break-word' }}>{val}</span>
+          </div>
+        ))}
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+          Sarah will read your number &amp; address back and confirm before placing the order.
+        </div>
+      </div>
+    );
+
+    // ─── Registration Modal ───────────────────────────────────────────────────────
+    // Captures name, +92 phone, address and email; persists to localStorage.
+    const RegisterModal = ({ initial, onSave, onClose, canSkip }) => {
+      const [name, setName] = useState(initial?.name || '');
+      const [phone, setPhone] = useState(() => (initial?.phone || '').replace(/^\+92\s?/, ''));
+      const [address, setAddress] = useState(initial?.address || '');
+      const [email, setEmail] = useState(initial?.email || '');
+      const [err, setErr] = useState({});
+
+      const normalizedDigits = () => phone.replace(/\D/g, '').replace(/^0/, '');
+
+      const validate = () => {
+        const e = {};
+        if (!name.trim()) e.name = 'Please enter your name.';
+        const digits = normalizedDigits();
+        if (digits.length !== 10) e.phone = 'Enter a 10-digit number, e.g. 300 1234567.';
+        if (!address.trim()) e.address = 'Please enter your delivery address.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email address.';
+        setErr(e);
+        return Object.keys(e).length === 0;
+      };
+
+      const handleSave = () => {
+        if (!validate()) return;
+        onSave({
+          name: name.trim(),
+          phone: '+92 ' + normalizedDigits(),
+          address: address.trim(),
+          email: email.trim(),
+        });
+      };
+
+      return (
+        <div className="modal-overlay" onClick={canSkip ? onClose : undefined}>
+          <div className="modal-card" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '26px 26px 8px' }}>
+              <div style={{ fontSize: '34px', marginBottom: '6px' }}>🍕</div>
+              <div className="font-display" style={{ fontWeight: 800, fontSize: '22px' }}>
+                {initial ? 'Edit your details' : 'Welcome to Pizza Hut'}
+              </div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '6px', lineHeight: 1.5 }}>
+                {initial
+                  ? 'Update your saved info — Sarah will use it on your next order.'
+                  : 'Save your details once so Sarah can confirm them by voice instead of asking each time.'}
+              </div>
+            </div>
+
+            <div style={{ padding: '18px 26px 26px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label className="field-label">Full Name</label>
+                <input className="field-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ali Khan" />
+                {err.name && <div className="field-err">{err.name}</div>}
+              </div>
+
+              <div>
+                <label className="field-label">Phone Number</label>
+                <div style={{ display: 'flex' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', padding: '0 13px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRight: 'none', borderRadius: '12px 0 0 12px', color: 'rgba(255,255,255,0.75)', fontSize: '14px', fontWeight: 600 }}>+92</span>
+                  <input
+                    className="field-input"
+                    style={{ borderRadius: '0 12px 12px 0' }}
+                    value={phone}
+                    onChange={e => setPhone(e.target.value.replace(/[^\d]/g, '').slice(0, 11))}
+                    placeholder="300 1234567"
+                    inputMode="numeric" />
+                </div>
+                {err.phone && <div className="field-err">{err.phone}</div>}
+              </div>
+
+              <div>
+                <label className="field-label">Delivery Address</label>
+                <textarea className="field-input" rows="2" style={{ resize: 'vertical' }} value={address} onChange={e => setAddress(e.target.value)} placeholder="House #, street, area, city" />
+                {err.address && <div className="field-err">{err.address}</div>}
+              </div>
+
+              <div>
+                <label className="field-label">Email (Gmail)</label>
+                <input className="field-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@gmail.com" />
+                {err.email && <div className="field-err">{err.email}</div>}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleSave}>
+                  {initial ? 'Save changes' : 'Save & continue'}
+                </button>
+                {canSkip && (
+                  <button className="btn-ghost" onClick={onClose}>Skip for now</button>
+                )}
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 1.5 }}>
+                Saved on this device only (localStorage). No account needed.
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── Full Menu Modal ──────────────────────────────────────────────────────────
+    // Lets users browse the whole menu themselves, add picks, then hand off to Sarah.
+    const FullMenuModal = ({ menu, picks, onAdd, onRemove, onClose, onHandoff }) => {
+      if (!menu) return null;
+
+      const inPicks = (id) => picks.some(p => p.id === id);
+
+      const Row = ({ id, name, desc, price, priceLabel }) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 13px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: 600 }}>{name}</div>
+            {desc && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>{desc}</div>}
+          </div>
+          <div style={{ fontSize: '13px', color: '#FF9999', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            {priceLabel || `PKR ${price.toLocaleString()}`}
+          </div>
+          <button
+            className={`add-btn ${inPicks(id) ? 'added' : ''}`}
+            title={inPicks(id) ? 'Remove from picks' : 'Add to picks'}
+            onClick={() => inPicks(id) ? onRemove(id) : onAdd({ id, name, price })}>
+            {inPicks(id) ? '✓' : '+'}
+          </button>
+        </div>
+      );
+
+      const Section = ({ title, children }) => (
+        <div style={{ marginBottom: '22px' }}>
+          <div className="font-display" style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>{title}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>{children}</div>
+        </div>
+      );
+
+      const sizeLabel = (prices) => {
+        if (!prices) return '';
+        const vals = Object.values(prices).filter(v => typeof v === 'number');
+        if (!vals.length) return '';
+        return `from PKR ${Math.min(...vals).toLocaleString()}`;
+      };
+      const pizzaBasePrice = (p) => {
+        const vals = Object.values(p.prices || {}).filter(v => typeof v === 'number');
+        return vals.length ? Math.min(...vals) : 0;
+      };
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-card" style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, background: '#1f1f1f', zIndex: 2, borderRadius: '24px 24px 0 0' }}>
+              <div style={{ width: '38px', height: '38px', background: 'var(--red)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🍕</div>
+              <div style={{ flex: 1 }}>
+                <div className="font-display" style={{ fontWeight: 800, fontSize: '18px' }}>Explore the Menu</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>Browse freely, then hand off to Sarah to order</div>
+              </div>
+              <button className="add-btn" onClick={onClose} title="Close">✕</button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="scrollable" style={{ padding: '20px 24px', flex: 1 }}>
+              {menu.pizzas?.length > 0 && (
+                <Section title="Pizzas">
+                  {menu.pizzas.map(p => (
+                    <Row key={p.id} id={p.id} name={p.name} desc={p.description}
+                      price={pizzaBasePrice(p)} priceLabel={sizeLabel(p.prices)} />
+                  ))}
+                </Section>
+              )}
+              {menu.deals?.length > 0 && (
+                <Section title="Deals">
+                  {menu.deals.map(d => (
+                    <Row key={d.id} id={d.id} name={d.name} desc={d.description} price={d.price} />
+                  ))}
+                </Section>
+              )}
+              {menu.sides?.length > 0 && (
+                <Section title="Sides">
+                  {menu.sides.map(s => <Row key={s.id} id={s.id} name={s.name} price={s.price} />)}
+                </Section>
+              )}
+              {menu.drinks?.length > 0 && (
+                <Section title="Drinks">
+                  {menu.drinks.map(d => <Row key={d.id} id={d.id} name={d.name} price={d.price} />)}
+                </Section>
+              )}
+              {menu.desserts?.length > 0 && (
+                <Section title="Desserts">
+                  {menu.desserts.map(d => <Row key={d.id} id={d.id} name={d.name} price={d.price} />)}
+                </Section>
+              )}
+            </div>
+
+            {/* Picks tray / handoff */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '16px 24px', background: '#1f1f1f', position: 'sticky', bottom: 0, borderRadius: '0 0 24px 24px' }}>
+              {picks.length > 0 && (
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginBottom: '12px', lineHeight: 1.5 }}>
+                  <span style={{ color: '#FF9999', fontWeight: 700 }}>{picks.length} pick{picks.length > 1 ? 's' : ''}:</span>{' '}
+                  {picks.map(p => p.name).join(', ')}
+                </div>
+              )}
+              <button className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={onHandoff}>
+                🎙️ {picks.length > 0 ? 'Hand off to Sarah to order' : 'Order with Sarah'}
+              </button>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '8px' }}>
+                Sarah will confirm your picks, address &amp; number, then place the order.
+              </div>
             </div>
           </div>
         </div>
@@ -415,7 +792,7 @@
     };
 
     // ─── Menu Preview ─────────────────────────────────────────────────────────────
-    const MenuPreview = ({ menu }) => {
+    const MenuPreview = ({ menu, onBrowse }) => {
       if (!menu) return null;
       return (
         <div className="glass-card" style={{ borderRadius: '20px', padding: '20px' }}>
@@ -446,6 +823,10 @@
               </div>
             ))}
           </div>
+          {/* Added: open the full browsable menu */}
+          <button className="btn-ghost" style={{ width: '100%', marginTop: '14px' }} onClick={onBrowse}>
+            🍽️ Browse full menu
+          </button>
         </div>
       );
     };
@@ -461,8 +842,40 @@
       const [vapiReady, setVapiReady] = useState(false);
       const [error, setError] = useState(null);
       const [showConfirm, setShowConfirm] = useState(false);
+
+      // ── Added state: profile + registration + menu browsing ──
+      const [profile, setProfile] = useState(loadProfile);
+      const [showRegister, setShowRegister] = useState(false);
+      const [showMenu, setShowMenu] = useState(false);
+      const [picks, setPicks] = useState([]);
+
       const chatRef = useRef(null);
       const vapiRef = useRef(null);
+      // Keep latest profile/picks accessible inside Vapi event closures
+      const profileRef = useRef(profile);
+      const picksRef = useRef(picks);
+      useEffect(() => { profileRef.current = profile; }, [profile]);
+      useEffect(() => { picksRef.current = picks; }, [picks]);
+
+      // First-run: prompt registration if no profile saved yet
+      useEffect(() => {
+        if (!loadProfile()) setShowRegister(true);
+      }, []);
+
+      // Build Sarah's personalized opening line from the saved profile
+      const buildGreeting = useCallback(() => {
+        const p = profileRef.current;
+        const picked = picksRef.current;
+        const pickText = picked && picked.length
+          ? ` I can see you were looking at ${picked.map(x => x.name).join(', ')} — want to go with that?`
+          : '';
+        if (p) {
+          return `Hello ${p.name}! Welcome back to Pizza Hut. I'm Sarah, your AI ordering assistant. ` +
+            `I have your number as ${p.phone} and your delivery address as ${p.address}. ` +
+            `Would you like to use these, or change the number or address before we start?` + pickText;
+        }
+        return "Hello! Welcome to Pizza Hut! I'm Sarah, your AI pizza ordering assistant. I can help you in English. What can I get for you today?";
+      }, []);
 
       // Load menu on mount
       useEffect(() => {
@@ -470,16 +883,35 @@
           .then(r => r.json())
           .then(d => { if (d.data) setMenu(d.data); })
           .catch(() => {
-            // Use mock menu if backend is offline
+            // Use mock menu if backend is offline (now includes all categories for browsing)
             setMenu({
               pizzas: [
                 { id: 'p1', name: 'Chicken Tikka', description: 'Classic chicken tikka flavor with signature sauce', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 } },
                 { id: 'p2', name: 'Chicken Fajita', description: 'Tender chicken fajita with onion and green pepper notes', popular: true, prices: { Small: 899, Medium: 1399, Large: 1999 } },
                 { id: 'p3', name: 'Chicken Supreme', description: 'Loaded chicken pizza with premium toppings', popular: true, prices: { Small: 999, Medium: 1499, Large: 2199 } },
+                { id: 'p4', name: 'Pepperoni', description: 'Classic pepperoni pizza with rich tomato base', popular: false, prices: { Small: 1099, Medium: 1599, Large: 2299 } },
+              ],
+              sides: [
+                { id: 's1', name: 'Garlic Bread', price: 499 },
+                { id: 's2', name: 'Chicken Wings', price: 799 },
+                { id: 's3', name: 'Fries', price: 399 },
+                { id: 's4', name: 'Pasta', price: 699 },
+              ],
+              drinks: [
+                { id: 'dr1', name: 'Regular Soft Drink', price: 199 },
+                { id: 'dr2', name: 'Large Soft Drink', price: 299 },
+                { id: 'dr3', name: '1.5 Liter Bottle', price: 349 },
+              ],
+              desserts: [
+                { id: 'ds1', name: 'Lava Cake', price: 399 },
+                { id: 'ds2', name: 'Brownie', price: 349 },
+                { id: 'ds3', name: 'Ice Cream', price: 299 },
               ],
               deals: [
                 { id: 'd1', name: 'My Box Deal', description: '1 Personal Pizza + Fries + 1 Drink', price: 699, saves: 0 },
                 { id: 'd2', name: 'Medium Duo Deal', description: '2 Medium Pizzas', price: 2499, saves: 0 },
+                { id: 'd3', name: 'Family Feast Deal', description: '2 Large Pizzas + Garlic Bread + 1.5L Drink', price: 3999, saves: 0 },
+                { id: 'd4', name: 'WOW Deal', description: '1 Medium Pizza + Garlic Bread + 1 Drink', price: 1599, saves: 0 },
               ]
             });
           });
@@ -504,23 +936,20 @@
             vapi.on('call-start', () => {
               setCallStatus('connected');
               setError(null);
-              addMessage('sarah', 'Hello! Welcome to Pizza Hut! I\'m Sarah, your AI pizza ordering assistant. I can help you in English. What can I get for you today?');
+              // Personalized greeting if the customer has a saved profile
+              addMessage('sarah', buildGreeting());
             });
-
             vapi.on('call-end', () => {
               setCallStatus('ended');
               setIsTyping(false);
             });
-
             vapi.on('speech-start', () => {
               setCallStatus('speaking');
               setIsTyping(false);
             });
-
             vapi.on('speech-end', () => {
               setCallStatus('connected');
             });
-
             vapi.on('message', (msg) => {
               if (msg.type === 'transcript') {
                 if (msg.transcriptType === 'final') {
@@ -542,13 +971,11 @@
                 setIsTyping(true);
               }
             });
-
             vapi.on('error', (e) => {
               console.error('Vapi error:', e);
               setError('Voice connection error. Please try again.');
               setCallStatus('idle');
             });
-
             setVapiReady(true);
           } catch (e) {
             console.error('Vapi init error', e);
@@ -560,7 +987,7 @@
           cancelled = true;
           if (vapiRef.current) vapiRef.current.stop();
         };
-      }, []);
+      }, [buildGreeting]);
 
       const addMessage = useCallback((role, content) => {
         setMessages(prev => [...prev, { role: role === 'sarah' ? 'sarah' : 'user', content, ts: Date.now() }]);
@@ -571,13 +998,10 @@
         const pizzas = ['Chicken Tikka', 'Chicken Fajita', 'Chicken Supreme', 'Pepperoni'];
         const sizes = ['Small', 'Medium', 'Large'];
         const lower = text.toLowerCase();
-
         let foundPizza = pizzas.find(p => lower.includes(p.toLowerCase()));
         let foundSize = sizes.find(s => lower.includes(s.toLowerCase())) || 'Medium';
-
         const orderKeywords = ['order', 'want', 'get', 'place', 'confirm', 'yes', 'please'];
         const hasOrder = orderKeywords.some(k => lower.includes(k)) && foundPizza;
-
         if (hasOrder && foundPizza) {
           setShowConfirm(true);
           setTimeout(() => submitOrder(foundPizza, foundSize), 1000);
@@ -591,7 +1015,8 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              items: [{ name: pizzaName, size, quantity: 1, crust: 'Pan' }]
+              items: [{ name: pizzaName, size, quantity: 1, crust: 'Pan' }],
+              customer_name: profileRef.current?.name || undefined
             })
           });
           const data = await res.json();
@@ -609,19 +1034,49 @@
         setOrderLoading(false);
       }, []);
 
+      // Start the Vapi call, passing the saved profile + picks as overrides so Sarah
+      // greets by name, reads back the number/address, and confirms changes.
+      const startCall = useCallback(async () => {
+        if (!vapiRef.current) { setError('Voice not ready yet. Please wait…'); return; }
+        setCallStatus('connecting');
+        setMessages([]);
+        setOrder(null);
+        setError(null);
+        try {
+          const p = profileRef.current;
+          const picked = picksRef.current;
+          let overrides;
+          if (p) {
+            const pickLine = picked && picked.length
+              ? ` They were just browsing the menu and showed interest in: ${picked.map(x => x.name).join(', ')}.`
+              : '';
+            overrides = {
+              // If your Vapi assistant prompt uses {{customerName}} etc., these fill them in.
+              variableValues: {
+                customerName: p.name,
+                customerPhone: p.phone,
+                customerAddress: p.address,
+                customerEmail: p.email,
+                menuPicks: (picked || []).map(x => x.name).join(', '),
+              },
+              // firstMessage works regardless of the dashboard prompt — guarantees the read-back.
+              firstMessage: `Hi ${p.name}! Welcome back to Pizza Hut. I'm Sarah. ` +
+                `I've got your number as ${p.phone} and your delivery address as ${p.address}. ` +
+                `Want to use those, or change the number or address before we order?` + pickLine,
+            };
+          }
+          await vapiRef.current.start(VAPI_ASSISTANT_ID, overrides);
+        } catch (e) {
+          console.error(e);
+          setError('Could not start call. Please try again.');
+          setCallStatus('idle');
+        }
+      }, []);
+
       const handleMicClick = useCallback(async () => {
         if (!vapiRef.current) { setError('Voice not ready yet. Please wait…'); return; }
         if (callStatus === 'idle' || callStatus === 'ended') {
-          setCallStatus('connecting');
-          setMessages([]);
-          setOrder(null);
-          setError(null);
-          try {
-            await vapiRef.current.start(VAPI_ASSISTANT_ID);
-          } catch (e) {
-            setError('Could not start call. Please try again.');
-            setCallStatus('idle');
-          }
+          await startCall();
         } else if (callStatus === 'listening') {
           vapiRef.current.setMuted(true);
           setCallStatus('connected');
@@ -629,13 +1084,35 @@
           vapiRef.current.setMuted(false);
           setCallStatus('listening');
         }
-      }, [callStatus]);
+      }, [callStatus, startCall]);
 
       const handleEndCall = useCallback(() => {
         if (vapiRef.current) vapiRef.current.stop();
         setCallStatus('ended');
         setIsTyping(false);
       }, []);
+
+      // ── Profile / menu handlers ──
+      const handleSaveProfile = useCallback((p) => {
+        saveProfile(p);
+        setProfile(p);
+        setShowRegister(false);
+      }, []);
+
+      const addPick = useCallback((item) => {
+        setPicks(prev => prev.some(p => p.id === item.id) ? prev : [...prev, item]);
+      }, []);
+      const removePick = useCallback((id) => {
+        setPicks(prev => prev.filter(p => p.id !== id));
+      }, []);
+
+      // Hand off from the menu to a voice order with Sarah
+      const handoffToSarah = useCallback(() => {
+        setShowMenu(false);
+        if (callStatus === 'idle' || callStatus === 'ended') {
+          setTimeout(() => startCall(), 200);
+        }
+      }, [callStatus, startCall]);
 
       // Status label
       const statusLabel = {
@@ -667,9 +1144,8 @@
           <div style={{ position: 'fixed', bottom: '-150px', right: '-100px', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(204,0,0,0.08) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
 
           <div style={{ position: 'relative', zIndex: 1, maxWidth: '1100px', margin: '0 auto', padding: '24px 16px' }}>
-
             {/* Header */}
-            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ width: '44px', height: '44px', background: 'var(--red)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', boxShadow: '0 4px 20px rgba(204,0,0,0.4)' }}>🍕</div>
                 <div>
@@ -677,9 +1153,17 @@
                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em', marginTop: '3px' }}>Your Pizza Hut AI Assistant</p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '999px', padding: '8px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span className={`status-dot ${statusClass}`} />
-                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{statusLabel}</span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {/* Added: quick actions */}
+                <button className="pill-btn" onClick={() => setShowMenu(true)}>🍽️ Menu</button>
+                <button className="pill-btn" onClick={() => setShowRegister(true)}>
+                  {profile ? '👤 ' + profile.name.split(' ')[0] : '✏️ Sign up'}
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '999px', padding: '8px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className={`status-dot ${statusClass}`} />
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{statusLabel}</span>
+                </div>
               </div>
             </header>
 
@@ -691,10 +1175,8 @@
 
             {/* Main Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 900 ? '1fr 360px' : '1fr', gap: '20px', alignItems: 'start' }}>
-
               {/* Left Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
                 {/* Chat Panel */}
                 <div className="glass-card" style={{ borderRadius: '24px', padding: '0', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -709,7 +1191,7 @@
                       <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.3)' }}>
                         <div style={{ fontSize: '40px', marginBottom: '12px' }}>👋</div>
                         <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 600, marginBottom: '8px', color: 'rgba(255,255,255,0.5)' }}>Tap the mic to start</div>
-                        <div style={{ fontSize: '12px', lineHeight: 1.6 }}>Sarah speaks English, Urdu & Hinglish</div>
+                        <div style={{ fontSize: '12px', lineHeight: 1.6 }}>Sarah speaks English, Urdu &amp; Hinglish</div>
                       </div>
                     )}
                     {messages.map((m, i) => <ChatBubble key={i} msg={m} />)}
@@ -727,7 +1209,6 @@
                         <div className="pulse-ring" style={{ position: 'absolute', width: '88px', height: '88px', borderRadius: '50%', background: 'rgba(204,0,0,0.15)', top: 0, left: '50%', transform: 'translateX(-50%)', animationDelay: '0.4s' }} />
                       </>
                     )}
-
                     {/* Main mic button */}
                     <button onClick={handleMicClick} className={micBtnClass}
                       style={{ width: '88px', height: '88px', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', transform: callStatus === 'listening' ? 'scale(1.08)' : 'scale(1)' }}>
@@ -739,10 +1220,8 @@
                         <MicIcon />
                       )}
                     </button>
-
                     {/* Status text */}
                     <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>{statusLabel}</div>
-
                     {/* End call button */}
                     {isActive && (
                       <button onClick={handleEndCall} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '999px', padding: '8px 20px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
@@ -752,7 +1231,6 @@
                       </button>
                     )}
                   </div>
-
                   {/* Language badges */}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
                     {['English'].map(lang => (
@@ -760,24 +1238,52 @@
                     ))}
                   </div>
                 </div>
-
               </div>
 
               {/* Right Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px' }}>Your Order</div>
+                {/* Added: profile dashboard card (only when registered) */}
+                {profile && (
+                  <>
+                    <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px' }}>Your Profile</div>
+                    <ProfileCard profile={profile} onEdit={() => setShowRegister(true)} />
+                  </>
+                )}
+
+                <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px', marginTop: profile ? '4px' : 0 }}>Your Order</div>
                 <OrderSummary order={order} loading={orderLoading} />
                 <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', paddingLeft: '4px', marginTop: '4px' }}>Menu Highlights</div>
-                <MenuPreview menu={menu} />
+                <MenuPreview menu={menu} onBrowse={() => setShowMenu(true)} />
               </div>
-
             </div>
 
             {/* Footer */}
             <div style={{ textAlign: 'center', marginTop: '36px', paddingBottom: '16px', color: 'rgba(255,255,255,0.2)', fontSize: '11px', letterSpacing: '0.04em' }}>
-              Pizza Hut Sarah — AI Ordering Assistant · Powered by Vapi & FastAPI
+              Pizza Hut Sarah — AI Ordering Assistant · Powered by Vapi &amp; FastAPI
             </div>
           </div>
+
+          {/* Registration modal */}
+          {showRegister && (
+            <RegisterModal
+              initial={profile}
+              canSkip={!!profile || true}
+              onSave={handleSaveProfile}
+              onClose={() => setShowRegister(false)}
+            />
+          )}
+
+          {/* Full menu browse modal */}
+          {showMenu && (
+            <FullMenuModal
+              menu={menu}
+              picks={picks}
+              onAdd={addPick}
+              onRemove={removePick}
+              onClose={() => setShowMenu(false)}
+              onHandoff={handoffToSarah}
+            />
+          )}
 
           {/* Order Confirm Overlay */}
           {showConfirm && (
