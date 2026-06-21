@@ -242,9 +242,46 @@
       max-height: 380px;
     }
 
+    /* Main two-column layout — collapses to one column on tablets/phones.
+       CSS (not window.innerWidth) so it reacts to resize and orientation. */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 768px) {
       .chat-scroll {
         max-height: 300px;
+      }
+    }
+
+    /* Phone tweaks: tighter gutters, comfortable tap targets, no overflow. */
+    @media (max-width: 600px) {
+      .app-shell {
+        padding: 18px 14px 14px !important;
+      }
+      .chat-scroll {
+        max-height: 46vh;
+      }
+      .chat-bubble > div {
+        max-width: 86% !important;
+      }
+      .pill-btn {
+        padding: 9px 12px;
+      }
+      .modal-overlay {
+        padding: 12px;
+      }
+      .modal-card {
+        max-height: 92vh;
       }
     }
 
@@ -760,6 +797,32 @@
       .map(word => word.split('').join('-').toUpperCase())
       .join('  ');
 
+    // Strip the customer's name out of conversation text before it is shown.
+    // Speech-to-text frequently mis-spells names (e.g. "Huzaifa" -> "Josepha"),
+    // so rather than display a wrong name we remove it. Two passes:
+    //   1) the exact saved name, in case STT happened to get it right;
+    //   2) a capitalized token right after a greeting / self-intro cue, which is
+    //      where the mis-heard name shows up ("Hi Josepha" -> "Hi").
+    // Words we never strip (the assistant's own name, common non-name tokens).
+    const NAME_KEEP = new Set(['there','again','back','sir','maam','madam','everyone',
+      'all','welcome','to','our','your','the','sarah','pizza','hut']);
+    const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const redactName = (text, known) => {
+      if (!text) return text;
+      let t = text;
+      if (known) {
+        known.trim().split(/\s+/).filter(w => w.length > 1).forEach(part => {
+          t = t.replace(new RegExp(`\\b${escapeRe(part)}\\b`, 'gi'), '');
+        });
+      }
+      t = t.replace(
+        /\b(hi|hello|hey|thanks|thank you|welcome back|welcome|bye|goodbye|name is|i'm|i am|this is|it's|call me)\b([ ,]+)([A-Za-z]+)/gi,
+        (m, cue, sep, word) => (/^[A-Z]/.test(word) && !NAME_KEEP.has(word.toLowerCase())) ? cue : m
+      );
+      // tidy up spacing / stray punctuation left where a name was removed
+      return t.replace(/\s{2,}/g, ' ').replace(/\s+([,.!?])/g, '$1').replace(/,\s*,/g, ',').trim();
+    };
+
     // ─── Icons (minimal line set, no emoji) ───────────────────────────────────────
     const Icon = ({ d, size = 18, sw = 1.6, children, ...rest }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -829,8 +892,11 @@
     );
 
     // ─── Chat Bubble ─────────────────────────────────────────────────────────────
-    const ChatBubble = ({ msg }) => {
+    const ChatBubble = ({ msg, userName }) => {
       const isUser = msg.role === 'user';
+      const content = redactName(msg.content, userName);
+      // If the turn was only the (mis-heard) name, there's nothing left to show.
+      if (!content) return null;
       return (
         <div className="chat-bubble" style={{
           display: 'flex', alignItems: 'flex-end', gap: '10px', marginBottom: '16px',
@@ -846,7 +912,7 @@
             border: isUser ? 'none' : '1px solid var(--line)',
             fontSize: '14px', lineHeight: '1.55', color: '#fff'
           }}>
-            {msg.content}
+            {content}
             <div className="mono" style={{ fontSize: '9.5px', opacity: 0.45, marginTop: '5px', textAlign: isUser ? 'right' : 'left' }}>
               {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
@@ -1317,8 +1383,8 @@
                   <span className="mono" style={{ fontSize: '13px', color: 'var(--text)' }}>Rs {fmt(item.total)}</span>
                 </div>
                 <div style={{ fontSize: '11.5px', color: 'var(--faint)' }}>
-                  {item.size} · {item.crust} · Qty {item.quantity}
-                  {item.add_ons?.length > 0 && <span> · {item.add_ons.join(', ')}</span>}
+                  {[item.size, item.crust, `Qty ${item.quantity}`, ...(item.add_ons?.length ? [item.add_ons.join(', ')] : [])]
+                    .filter(Boolean).join(' · ')}
                 </div>
               </div>
             ))}
@@ -1473,8 +1539,14 @@
       const vapiRef = useRef(null);
       const profileRef = useRef(profile);
       const picksRef = useRef(picks);
+      const orderRef = useRef(order);
+      const menuRef = useRef(null);
+      const lastSarahRef = useRef('');     // last thing the assistant said (final transcript)
+      const detectedItemsRef = useRef({}); // items detected across the spoken conversation
       useEffect(() => { profileRef.current = profile; }, [profile]);
       useEffect(() => { picksRef.current = picks; }, [picks]);
+      useEffect(() => { orderRef.current = order; }, [order]);
+      useEffect(() => { menuRef.current = menu; }, [menu]);
 
       useEffect(() => {
         if (!loadProfile()) setShowRegister(true);
@@ -1577,8 +1649,10 @@
                   } else {
                     setIsTyping(false);
                     setCallStatus('speaking');
-                    parseOrderFromTranscript(text);
                   }
+                  // Run order detection on BOTH speakers' final turns so a
+                  // confirmation from either side reliably places the order.
+                  handleFinalTranscript(role, text);
                 }
               }
               if (msg.type === 'function-call' || msg.type === 'tool-call') {
@@ -1624,44 +1698,115 @@
         });
       }, []);
 
-      const parseOrderFromTranscript = useCallback((text) => {
-        const pizzas = ['Chicken Tikka', 'Chicken Fajita', 'Chicken Supreme', 'Pepperoni'];
-        const sizes = ['Small', 'Medium', 'Large'];
-        const lower = text.toLowerCase();
-        let foundPizza = pizzas.find(p => lower.includes(p.toLowerCase()));
-        let foundSize = sizes.find(s => lower.includes(s.toLowerCase())) || 'Medium';
-        const orderKeywords = ['order', 'want', 'get', 'place', 'confirm', 'yes', 'please'];
-        const hasOrder = orderKeywords.some(k => lower.includes(k)) && foundPizza;
-        if (hasOrder && foundPizza) {
-          setShowConfirm(true);
-          setTimeout(() => submitOrder(foundPizza, foundSize), 1000);
-        }
+      // Build a confirmed order straight from the customer's cart picks and show
+      // it (with the full bill) in the "Your order" panel. This is the reliable
+      // path: it doesn't depend on the assistant naming each item out loud.
+      const placeOrderFromPicks = useCallback((picks) => {
+        if (!picks || !picks.length) return;
+        setShowConfirm(true);
+        const bill = computeBill(picks);
+        const items = picks.map(p => ({
+          pizza: p.baseName || p.name,
+          size: p.size || '',
+          crust: p.crust || '',
+          quantity: p.quantity || 1,
+          add_ons: p.addOns || [],
+          total: p.price,
+        }));
+        const result = {
+          order_id: 'PHT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          customer_name: profileRef.current?.name || 'Valued Customer',
+          items,
+          summary: {
+            subtotal: bill.subtotal,
+            delivery_fee: bill.deliveryFee,
+            tax: bill.tax,
+            grand_total: bill.grandTotal,
+            currency: 'PKR',
+          },
+          estimated_time: '30-45 minutes',
+        };
+        setTimeout(() => { setOrder(result); setShowConfirm(false); }, 900);
       }, []);
 
-      const submitOrder = useCallback(async (pizzaName, size) => {
-        setOrderLoading(true);
-        try {
-          const res = await fetch(`${API_BASE}/order`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              items: [{ name: pizzaName, size, quantity: 1, crust: 'Pan' }],
-              customer_name: profileRef.current?.name || undefined
-            })
-          });
-          const data = await res.json();
-          if (data.status === 'success') { setOrder(data); setShowConfirm(false); }
-        } catch {
-          setOrder({
-            order_id: 'PHT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-            items: [{ pizza: pizzaName, size, crust: 'Pan', quantity: 1, add_ons: [], total: size === 'Large' ? 1999 : (size === 'Medium' ? 1399 : 899) }],
-            summary: { subtotal: size === 'Large' ? 1999 : (size === 'Medium' ? 1399 : 899), delivery_fee: 149, tax: size === 'Large' ? 260 : (size === 'Medium' ? 182 : 117), grand_total: size === 'Large' ? 2408 : (size === 'Medium' ? 1730 : 1165), currency: 'PKR' },
-            estimated_time: '30-45 minutes'
-          });
-          setShowConfirm(false);
-        }
-        setOrderLoading(false);
+      // Scan one transcript line against the whole menu and remember any items
+      // mentioned, so a voice-only order (no on-screen cart) can still be shown.
+      const scanForItems = useCallback((lower) => {
+        const menu = menuRef.current;
+        if (!menu) return;
+        const sizes = ['Small', 'Medium', 'Large'];
+        const size = sizes.find(s => lower.includes(s.toLowerCase()));
+        const consider = [
+          ...(menu.pizzas || []).map(p => ({ ...p, kind: 'pizza' })),
+          ...(menu.sides || []).map(p => ({ ...p, kind: 'side' })),
+          ...(menu.drinks || []).map(p => ({ ...p, kind: 'drink' })),
+          ...(menu.desserts || []).map(p => ({ ...p, kind: 'dessert' })),
+          ...(menu.deals || []).map(p => ({ ...p, kind: 'deal' })),
+        ];
+        consider.forEach(it => {
+          if (!it.name || !lower.includes(it.name.toLowerCase())) return;
+          const chosenSize = it.kind === 'pizza' ? (size || 'Medium') : '';
+          const price = it.prices ? (it.prices[chosenSize] || it.prices.Medium) : it.price;
+          const prev = detectedItemsRef.current[it.name];
+          detectedItemsRef.current[it.name] = {
+            name: it.name,
+            size: chosenSize || (prev && prev.size) || '',
+            price: Number(price) || 0,
+            quantity: prev ? prev.quantity : 1,
+          };
+        });
       }, []);
+
+      // Build + show a confirmed order from items detected in the conversation.
+      const placeOrderFromDetected = useCallback(() => {
+        const items = Object.values(detectedItemsRef.current);
+        if (!items.length) return false;
+        setShowConfirm(true);
+        const bill = computeBill(items.map(i => ({ price: i.price * (i.quantity || 1) })));
+        const lines = items.map(i => ({
+          pizza: i.name,
+          size: i.size || '',
+          crust: '',
+          quantity: i.quantity || 1,
+          add_ons: [],
+          total: i.price * (i.quantity || 1),
+        }));
+        const result = {
+          order_id: 'PHT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          customer_name: profileRef.current?.name || 'Valued Customer',
+          items: lines,
+          summary: {
+            subtotal: bill.subtotal, delivery_fee: bill.deliveryFee,
+            tax: bill.tax, grand_total: bill.grandTotal, currency: 'PKR',
+          },
+          estimated_time: '30-45 minutes',
+        };
+        setTimeout(() => { setOrder(result); setShowConfirm(false); }, 900);
+        return true;
+      }, []);
+
+      // Decide, from a final transcript turn, whether the order is being placed.
+      const handleFinalTranscript = useCallback((role, text) => {
+        const lower = text.toLowerCase();
+        if (role === 'sarah') lastSarahRef.current = lower;
+        scanForItems(lower);          // keep a running tally of mentioned items
+        if (orderRef.current) return; // already placed — don't place twice
+        const picks = picksRef.current;
+
+        // Strong "the order is being placed" signal from the assistant.
+        const placedByAssistant = role === 'sarah' && /(plac(e|ing|ed)\s+(your\s+|the\s+)?order|order\s+(is\s+)?(confirmed|placed)|send(ing)?\s+(it|this|your order)?\s*to the kitchen|you'?re all set|on (its|the) way)/.test(lower);
+        // Customer explicitly asks to place/confirm the order.
+        const explicitUser = role === 'user' && /(place (the |my )?order|confirm (the |my )?order|go ahead and order)/.test(lower);
+        // A bare "yes" only counts if the assistant just asked to confirm the order.
+        const sarahAskedToConfirm = /(confirm|plac|ready).*order|order.*(confirm|\?)|shall i (place|order)|should i place/.test(lastSarahRef.current);
+        const bareYes = role === 'user' && /^(yes|yep|yeah|sure|correct|confirm|go ahead|sounds good|do it|place it|that'?s right|absolutely|ok|okay)\b/.test(lower);
+
+        if (placedByAssistant || explicitUser || (bareYes && sarahAskedToConfirm)) {
+          // Prefer the on-screen cart; otherwise fall back to what was said aloud.
+          if (picks && picks.length) { placeOrderFromPicks(picks); return; }
+          if (placeOrderFromDetected()) return;
+        }
+      }, [placeOrderFromPicks, placeOrderFromDetected, scanForItems]);
 
       const startCall = useCallback(async () => {
         if (!vapiRef.current) { setError('Voice not ready yet. Please wait…'); return; }
@@ -1669,6 +1814,8 @@
         setMessages([]);
         setOrder(null);
         setError(null);
+        detectedItemsRef.current = {};
+        lastSarahRef.current = '';
         try {
           const p = profileRef.current;
           const picked = picksRef.current;
@@ -1690,6 +1837,11 @@
                 customerAddress: p.address,
                 customerEmail: p.email,
                 menuPicks: (picked || []).map(x => x.name).join(', '),
+                // Flags + a ready-made summary the dashboard prompt can drop in so it
+                // CONFIRMS saved details instead of asking the customer to provide them.
+                isReturningCustomer: 'true',
+                hasSavedDetails: 'true',
+                customerProfile: `Name: ${p.name}; Phone: ${p.phone}; Address: ${p.address}; Email: ${p.email}`,
               },
               // Opening line is just a warm greeting — no detail read-back up front.
               firstMessage: `Hi ${p.name}! Welcome back to Pizza Hut — I'm Sarah.` + pickLine,
@@ -1777,7 +1929,7 @@
         <div style={{ minHeight: '100vh', position: 'relative' }}>
           {showIntro && <IntroLoader name={profile?.name ? profile.name.split(' ')[0] : null} onDone={() => setShowIntro(false)} />}
 
-          <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto', padding: '28px 20px 16px' }}>
+          <div className="app-shell" style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto', padding: '28px 20px 16px' }}>
             {/* Header */}
             <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '40px', gap: '12px', flexWrap: 'wrap', paddingBottom: '20px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1815,7 +1967,7 @@
             )}
 
             {/* Main Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 900 ? '1fr 360px' : '1fr', gap: '20px', alignItems: 'start' }}>
+            <div className="main-grid">
               {/* Left Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Chat Panel */}
@@ -1834,7 +1986,7 @@
                         <div style={{ fontSize: '12.5px', lineHeight: 1.6 }}>Your conversation with the assistant appears here</div>
                       </div>
                     )}
-                    {messages.map((m, i) => <ChatBubble key={i} msg={m} />)}
+                    {messages.map((m, i) => <ChatBubble key={i} msg={m} userName={profile?.name} />)}
                     {isTyping && <TypingIndicator />}
                   </div>
                 </div>
