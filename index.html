@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#120708" />
   <title>Pizza Hut · Voice Ordering</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -40,16 +41,23 @@
       padding: 0;
     }
 
+    html {
+      background: #120708;
+      overscroll-behavior: none;
+    }
+
     body {
       font-family: 'Inter', -apple-system, sans-serif;
       background:
         radial-gradient(1200px 620px at 50% -12%, rgba(168, 30, 34, 0.34), transparent 62%),
         radial-gradient(900px 520px at 102% 112%, rgba(92, 20, 24, 0.32), transparent 60%),
         linear-gradient(180deg, #1C0D0E 0%, #150809 60%, #120708 100%);
+      background-color: #120708;
       background-attachment: fixed;
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      overscroll-behavior: none;
       -webkit-font-smoothing: antialiased;
       letter-spacing: -0.01em;
     }
@@ -1157,6 +1165,139 @@
       );
     };
 
+    // Deal configurator: deals bundle one or more pizzas at a fixed base price. For
+    // every pizza slot the customer picks a flavour, crust and toppings — the same
+    // choices offered when ordering a single pizza. The deal price covers a default
+    // Pan crust with no toppings; crust upgrades and extra toppings add to the total.
+    const DealConfigurator = ({ deal, pizzas, crusts, addOns, onAdd, onClose }) => {
+      const slots = deal.pizza_slots || [];
+      const flavourNames = (pizzas && pizzas.length ? pizzas.map(p => p.name) : []);
+      const crustList = (crusts && crusts.length ? crusts : [{ name: 'Pan', extra_price: 0 }]);
+      const defaultCrust = crustList.some(c => c.name === 'Pan') ? 'Pan' : crustList[0].name;
+
+      // One config object per slot: { flavour, crust, addOns: [names] }.
+      const [slotConfigs, setSlotConfigs] = useState(
+        slots.map(() => ({ flavour: flavourNames[0] || '', crust: defaultCrust, addOns: [] }))
+      );
+      const [quantity, setQuantity] = useState(1);
+
+      const updateSlot = (i, patch) =>
+        setSlotConfigs(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c));
+      const toggleAddOn = (i, name) => setSlotConfigs(prev => prev.map((c, idx) => {
+        if (idx !== i) return c;
+        const has = c.addOns.includes(name);
+        return { ...c, addOns: has ? c.addOns.filter(n => n !== name) : [...c.addOns, name] };
+      }));
+
+      const crustExtra = (name) => { const c = crustList.find(x => x.name === name); return c ? (c.extra_price || 0) : 0; };
+      const addOnPrice = (name) => { const a = (addOns || []).find(x => x.name === name); return a ? (a.price || 0) : 0; };
+
+      // Extra cost on top of the base deal price, from crust upgrades and toppings.
+      const extras = slotConfigs.reduce((sum, c) =>
+        sum + crustExtra(c.crust) + c.addOns.reduce((s, n) => s + addOnPrice(n), 0), 0);
+      const unit = (deal.price || 0) + extras;
+      const lineTotal = unit * quantity;
+
+      const Pill = ({ active, onClick, children, sub }) => (
+        <button
+          onClick={onClick}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+            padding: '9px 14px', borderRadius: '11px', cursor: 'pointer',
+            border: `1px solid ${active ? 'var(--red)' : 'var(--line)'}`,
+            background: active ? 'rgba(228,30,38,0.08)' : 'var(--surface-2)',
+            color: active ? 'var(--red)' : 'var(--text)', fontSize: '13px', fontWeight: 500,
+            transition: 'all .12s',
+          }}>
+          {children}
+          {sub != null && <span className="mono" style={{ fontSize: '10.5px', color: active ? 'var(--red)' : 'var(--faint)' }}>{sub}</span>}
+        </button>
+      );
+
+      const confirm = () => {
+        const id = `${deal.id}|` + slotConfigs.map(c => `${c.flavour}/${c.crust}/${c.addOns.slice().sort().join('+')}`).join('|');
+        const slotLabel = slots.map((s, i) => {
+          const c = slotConfigs[i];
+          const parts = [c.flavour, c.crust, ...c.addOns];
+          return `${parts.join(' ')}${s.size ? ` (${s.size})` : ''}`;
+        }).join(' + ');
+        const display = slots.length ? `${deal.name} · ${slotLabel}` : deal.name;
+        onAdd({ id, baseId: deal.id, baseName: deal.name, name: display, dealId: deal.id, slots: slotConfigs.map(c => ({ ...c, addOns: c.addOns.slice() })), unitPrice: unit, quantity, price: lineTotal });
+        onClose();
+      };
+
+      return (
+        <div className="modal-overlay" style={{ zIndex: 30 }} onClick={onClose}>
+          <div className="modal-card" style={{ maxWidth: '440px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <div className="font-display" style={{ fontWeight: 600, fontSize: '18px' }}>{deal.name}</div>
+                {deal.description && <div style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '3px' }}>{deal.description}</div>}
+              </div>
+              <button className="add-btn" onClick={onClose} title="Back">✕</button>
+            </div>
+
+            <div className="scrollable" style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+              {slots.map((s, i) => {
+                const c = slotConfigs[i];
+                return (
+                  <div key={i} style={{ marginBottom: '20px', paddingBottom: slots.length > 1 ? '16px' : 0, borderBottom: slots.length > 1 && i < slots.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                    {slots.length > 1 && (
+                      <div className="font-display" style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--red)' }}>
+                        Pizza {i + 1}{s.size ? ` · ${s.size}` : ''}
+                      </div>
+                    )}
+                    <div style={{ marginBottom: '14px' }}>
+                      <div className="eyebrow" style={{ marginBottom: '10px' }}>Flavour{slots.length === 1 && s.size ? ` · ${s.size}` : ''}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {flavourNames.map(fn => (
+                          <Pill key={fn} active={c.flavour === fn} onClick={() => updateSlot(i, { flavour: fn })}>{fn}</Pill>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                      <div className="eyebrow" style={{ marginBottom: '10px' }}>Crust</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {crustList.map(cr => (
+                          <Pill key={cr.name} active={c.crust === cr.name} onClick={() => updateSlot(i, { crust: cr.name })} sub={cr.extra_price ? `+Rs ${fmt(cr.extra_price)}` : 'Included'}>{cr.name}</Pill>
+                        ))}
+                      </div>
+                    </div>
+                    {(addOns || []).length > 0 && (
+                      <div>
+                        <div className="eyebrow" style={{ marginBottom: '10px' }}>Toppings & extras</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {addOns.map(a => (
+                            <Pill key={a.name} active={c.addOns.includes(a.name)} onClick={() => toggleAddOn(i, a.name)} sub={`+Rs ${fmt(a.price)}`}>{a.name}</Pill>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ marginBottom: '4px' }}>
+                <div className="eyebrow" style={{ marginBottom: '10px' }}>Quantity</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button className="add-btn" onClick={() => setQuantity(q => Math.max(1, q - 1))} title="Less">−</button>
+                  <span className="mono" style={{ fontSize: '16px', minWidth: '22px', textAlign: 'center' }}>{quantity}</span>
+                  <button className="add-btn" onClick={() => setQuantity(q => q + 1)} title="More">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--faint)' }}>Deal total{extras > 0 ? ` · incl. +Rs ${fmt(extras)} extras` : ''}</div>
+                <div className="mono" style={{ fontSize: '17px', fontWeight: 600 }}>Rs {fmt(lineTotal)}</div>
+              </div>
+              <button className="btn-primary" onClick={confirm}>Add to cart</button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const FullMenuModal = ({ menu, picks, onAdd, onRemove, onClose, onHandoff }) => {
       if (!menu) return null;
 
@@ -1165,6 +1306,8 @@
 
       // The pizza currently being configured (size / crust / toppings), or null.
       const [configuring, setConfiguring] = useState(null);
+      // The deal currently being configured (flavour per pizza slot), or null.
+      const [configuringDeal, setConfiguringDeal] = useState(null);
 
       const crusts = menu.crusts || [];
       const addOns = menu.add_ons || [];
@@ -1205,6 +1348,31 @@
               className={`add-btn ${count > 0 ? 'added' : ''}`}
               title="Choose size, crust & toppings"
               onClick={() => setConfiguring(pizza)}>
+              {count > 0 ? count : '+'}
+            </button>
+          </div>
+        );
+      };
+
+      // Deal row — if the deal bundles pizzas, open the flavour configurator;
+      // otherwise it's a plain add/remove row.
+      const DealRow = ({ deal }) => {
+        const hasFlavours = (deal.pizza_slots || []).length > 0;
+        if (!hasFlavours) {
+          return <Row id={deal.id} name={deal.name} desc={deal.description} price={deal.price} />;
+        }
+        const count = picks.filter(p => p.dealId === deal.id).reduce((n, p) => n + (p.quantity || 1), 0);
+        return (
+          <div className="menu-row">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14.5px', fontWeight: 500 }}>{deal.name}</div>
+              {deal.description && <div style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '3px', lineHeight: 1.45 }}>{deal.description}</div>}
+            </div>
+            <div className="mono" style={{ fontSize: '12.5px', color: 'var(--text)', whiteSpace: 'nowrap' }}>Rs {fmt(deal.price)}</div>
+            <button
+              className={`add-btn ${count > 0 ? 'added' : ''}`}
+              title="Choose flavours"
+              onClick={() => setConfiguringDeal(deal)}>
               {count > 0 ? count : '+'}
             </button>
           </div>
@@ -1257,7 +1425,7 @@
               {menu.deals?.length > 0 && (
                 <Section title="Deals" count={menu.deals.length}>
                   {menu.deals.map(d => (
-                    <Row key={d.id} id={d.id} name={d.name} desc={d.description} price={d.price} />
+                    <DealRow key={d.id} deal={d} />
                   ))}
                 </Section>
               )}
@@ -1349,6 +1517,17 @@
               addOns={addOns}
               onAdd={onAdd}
               onClose={() => setConfiguring(null)}
+            />
+          )}
+
+          {configuringDeal && (
+            <DealConfigurator
+              deal={configuringDeal}
+              pizzas={menu.pizzas || []}
+              crusts={crusts}
+              addOns={addOns}
+              onAdd={onAdd}
+              onClose={() => setConfiguringDeal(null)}
             />
           )}
         </div>
@@ -1594,10 +1773,10 @@
                 { id: 'ds3', name: 'Ice Cream', price: 299 },
               ],
               deals: [
-                { id: 'd1', name: 'My Box Deal', description: '1 Personal Pizza + Fries + 1 Drink', price: 699, saves: 0 },
-                { id: 'd2', name: 'Medium Duo Deal', description: '2 Medium Pizzas', price: 2499, saves: 0 },
-                { id: 'd3', name: 'Family Feast Deal', description: '2 Large Pizzas + Garlic Bread + 1.5L Drink', price: 3999, saves: 0 },
-                { id: 'd4', name: 'WOW Deal', description: '1 Medium Pizza + Garlic Bread + 1 Drink', price: 1599, saves: 0 },
+                { id: 'd1', name: 'My Box Deal', description: '1 Personal Pizza + Fries + 1 Drink', price: 699, saves: 0, pizza_slots: [{ size: 'Personal' }] },
+                { id: 'd2', name: 'Medium Duo Deal', description: '2 Medium Pizzas', price: 2499, saves: 0, pizza_slots: [{ size: 'Medium' }, { size: 'Medium' }] },
+                { id: 'd3', name: 'Family Feast Deal', description: '2 Large Pizzas + Garlic Bread + 1.5L Drink', price: 3999, saves: 0, pizza_slots: [{ size: 'Large' }, { size: 'Large' }] },
+                { id: 'd4', name: 'WOW Deal', description: '1 Medium Pizza + Garlic Bread + 1 Drink', price: 1599, saves: 0, pizza_slots: [{ size: 'Medium' }] },
               ]
             });
           });

@@ -133,28 +133,32 @@ MENU = {
             "name": "My Box Deal",
             "description": "1 Personal Pizza + Fries + 1 Drink",
             "price": 699,
-            "saves": 0
+            "saves": 0,
+            "pizza_slots": [{"size": "Personal"}]
         },
         {
             "id": "deal2",
             "name": "Medium Duo Deal",
             "description": "2 Medium Pizzas",
             "price": 2499,
-            "saves": 0
+            "saves": 0,
+            "pizza_slots": [{"size": "Medium"}, {"size": "Medium"}]
         },
         {
             "id": "deal3",
             "name": "Family Feast Deal",
             "description": "2 Large Pizzas + Garlic Bread + 1.5L Drink",
             "price": 3999,
-            "saves": 0
+            "saves": 0,
+            "pizza_slots": [{"size": "Large"}, {"size": "Large"}]
         },
         {
             "id": "deal4",
             "name": "WOW Deal",
             "description": "1 Medium Pizza + Garlic Bread + 1 Drink",
             "price": 1599,
-            "saves": 0
+            "saves": 0,
+            "pizza_slots": [{"size": "Medium"}]
         },
     ]
 }
