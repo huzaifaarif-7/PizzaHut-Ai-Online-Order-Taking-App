@@ -805,13 +805,10 @@
       .map(word => word.split('').join('-').toUpperCase())
       .join('  ');
 
-    // Strip the customer's name out of conversation text before it is shown.
-    // Speech-to-text frequently mis-spells names (e.g. "Huzaifa" -> "Josepha"),
-    // so rather than display a wrong name we remove it. Two passes:
+
     //   1) the exact saved name, in case STT happened to get it right;
     //   2) a capitalized token right after a greeting / self-intro cue, which is
-    //      where the mis-heard name shows up ("Hi Josepha" -> "Hi").
-    // Words we never strip (the assistant's own name, common non-name tokens).
+
     const NAME_KEEP = new Set(['there','again','back','sir','maam','madam','everyone',
       'all','welcome','to','our','your','the','sarah','pizza','hut']);
     const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1167,8 +1164,7 @@
 
     // Deal configurator: deals bundle one or more pizzas at a fixed base price. For
     // every pizza slot the customer picks a flavour, crust and toppings — the same
-    // choices offered when ordering a single pizza. The deal price covers a default
-    // Pan crust with no toppings; crust upgrades and extra toppings add to the total.
+   
     const DealConfigurator = ({ deal, pizzas, crusts, addOns, onAdd, onClose }) => {
       const slots = deal.pizza_slots || [];
       const flavourNames = (pizzas && pizzas.length ? pizzas.map(p => p.name) : []);
